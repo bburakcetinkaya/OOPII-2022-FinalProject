@@ -440,10 +440,3 @@ class Ui_MainWindow(object):
         self.heuristicsAction_simulatedAnneling.setText(_translate("MainWindow", "Simulated Anneling"))
         self.heuristicsAction_simulatedAnneling.setShortcut(_translate("MainWindow", "Ctrl+B"))
 
-import sys
-app = QtWidgets.QApplication(sys.argv)
-MainWindow = QtWidgets.QMainWindow()
-ui = Ui_MainWindow()
-ui.setupUi(MainWindow)
-MainWindow.show()   
-sys.exit(app.exec_()) 
