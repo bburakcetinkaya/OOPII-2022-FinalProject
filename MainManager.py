@@ -8,9 +8,15 @@ Created on Thu May 26 14:56:23 2022
 
 
 from MainWindow import Ui_MainWindow
+from PyQt5.QtCore import QObject,pyqtSignal
 from DataHolder import DataHolder
 from SignalSlotCommunicationManager import SignalSlotCommunicationManager
 from dataOperations import KMeansCalculator
+from dataOperations import AffinityPropagationCalculator
+from dataOperations import meanShiftCalculator
+from dataOperations import dbScanCalculator
+from dataOperations import hcCalculator
+from dataOperations import scCalculator
 from PyQt5 import QtWidgets,QtGui,QtCore
 from PyQt5.QtWidgets import QFileDialog
 
@@ -20,14 +26,16 @@ import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-class MainManager(QtWidgets.QMainWindow,QtCore.QObject,Ui_MainWindow):    
+class MainManager(QtWidgets.QMainWindow,QObject,Ui_MainWindow):  
+    
     def __init__(self,parent=None):
         super().__init__(parent)
         QtCore.QObject.__init__(self)
         self.setupUi(self)
         self.connectSignalSlots()
-        self.connectManagersSignalSlots() 
+        
         self.dataHolder = DataHolder()
+        self.specialSignalSlots() 
 
     def connectSignalSlots(self):
         # file actions
@@ -47,13 +55,26 @@ class MainManager(QtWidgets.QMainWindow,QtCore.QObject,Ui_MainWindow):
         
         # clustering actions
         self.clusteringAction_KMeans.triggered.connect(self.kMeans)
+        self.clusteringAction_affinityPropagation.triggered.connect(self.affinityPropagation)
+        self.clusteringAction_DBSCAN.triggered.connect(self.dbScan)
+        self.clusteringAction_hierarchicalClustering.triggered.connect(self.hClustering)
+        self.clusteringAction_meanShift.triggered.connect(self.meanShift)
+        self.clusteringAction_spectralClustering.triggered.connect(self.spectralClustering)
         # clustering buttons
         self.clusteringButton_KMeans.clicked.connect(self.kMeans)
+        self.clusteringButton_affinityPropagation.clicked.connect(self.affinityPropagation)
+        self.clusteringButton_hierarchicalClustering.clicked.connect(self.hClustering)
+        self.clusteringButton_meanShift.clicked.connect(self.meanShift)
+        self.clusteringButton_DBSCAN.clicked.connect(self.dbScan)
+        self.clusteringButton_spectralClustering.clicked.connect(self.spectralClustering)
         
-    def connectManagersSignalSlots(self):
+    def specialSignalSlots(self):
         self.communicator = SignalSlotCommunicationManager()
         self.communicator.fileOpened.connect(self.printInitialSolution)
-        # self.communicator.kmeansOKClicked.connect(self.kmeansPrint)
+        
+    def resizeEvent(self, event):
+        self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
+        QtWidgets.QMainWindow.resizeEvent(self, event)
         
     def enableAfterDataObtained(self):
         print("enableAfterDataObtained")
@@ -86,6 +107,7 @@ class MainManager(QtWidgets.QMainWindow,QtCore.QObject,Ui_MainWindow):
         self.dataHolder.setInitialData(data)
         self.communicator.fileOpened.emit()
         self.enableAfterDataObtained()
+        # self.printInitialSolution(self,labels=[],centers=[])
 
     def saveToFile(self,option,solution):    
         if solution == "initial":
@@ -107,22 +129,24 @@ class MainManager(QtWidgets.QMainWindow,QtCore.QObject,Ui_MainWindow):
 
             
         
-    def printInitialSolution(self,labels=[],centers=[]):        
+    def printInitialSolution(self,labels=[],centers=[]):  
         self.initialSolution_scene = QtWidgets.QGraphicsScene(self)                
-        
-        data = self.dataHolder.getInitialData()
-        self.figure = plt.figure()
-        self.figure.clear()
-        ploting = self.figure.add_subplot(111)
+        self.initialSolution_figure = plt.figure(dpi=100)
+        self.initialSolution_canvas = FigureCanvas(self.initialSolution_figure)
+        data = self.dataHolder.getInitialData()        
+        self.initialSolution_figure.clear()
+        ploting = self.initialSolution_figure.add_subplot(111)
         ploting.scatter(data[:,0], data[:,1],color="k",s=50) 
-        # print("lbl:",labels,"centers:",centers)
+        print("lbl:",labels,"centers:",centers)
 
         if len(labels):
             ploting.scatter(data[:,0], data[:,1],c = labels,s = 50,cmap = 'rainbow')
+            # print("lbl")
         if len(centers):
             ploting.scatter(centers[:, 0],centers[:, 1],c = "red",s = 50, marker="x",alpha = 1,linewidth=1)
+            # print("center")
             
-        self.initialSolution_canvas = FigureCanvas(self.figure)
+        
         self.initialSolution_scene.addWidget(self.initialSolution_canvas)
         
         self.initialSolution_graphicsView.setScene(self.initialSolution_scene)   
@@ -133,10 +157,32 @@ class MainManager(QtWidgets.QMainWindow,QtCore.QObject,Ui_MainWindow):
         self.kmWindow.show()
         self.kmWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.kmWindow.getLabels(),
                                                                                  self.kmWindow.getCenters())})
-        
-
-
-        
+    def affinityPropagation(self):
+        self.apWindow = AffinityPropagationCalculator()
+        self.apWindow.show()
+        self.apWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.apWindow.getLabels(),
+                                                                                 self.apWindow.getCenters())})
+    def meanShift(self):
+        self.msWindow = meanShiftCalculator()
+        self.msWindow.show()
+        self.msWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.msWindow.getLabels(),
+                                                                                 self.msWindow.getCenters())})
+    def dbScan(self):
+        self.dbScanWindow = dbScanCalculator()
+        self.dbScanWindow.show()
+        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.dbScanWindow.getLabels(),
+                                                                                     self.dbScanWindow.getCenters())})
+    def hClustering(self):
+        self.hcWindow = hcCalculator()
+        self.hcWindow.show()
+        self.hcWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.hcWindow.getLabels(),
+                                                                                 self.hcWindow.getCenters())})
+    def spectralClustering(self):
+        self.scWindow = scCalculator()
+        self.scWindow.show()
+        self.scWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.scWindow.getLabels(),
+                                                                                 self.scWindow.getCenters())})
+    
         
 
 
