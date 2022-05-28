@@ -22,21 +22,25 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 
 from SignalSlotCommunicationManager import SignalSlotCommunicationManager
-# class AbstractCalculator(type(ABC)):
-#     @abstractmethod
-#     def connectSignalSlots(self):
-#         #  connect signals and slots 
-#         pass
-#     @abstractmethod
-#     def calculate(self):
-#         # makes necessary calculations for clustering
-#         pass
-#     @abstractmethod
-#     def resetParameters(self):
-#         # resets the parameters in the ui to their defaults
-#         pass
 
-class KMeansCalculator(QtWidgets.QMainWindow,Ui_kMeansWindow):
+from abc import ABCMeta, abstractmethod
+
+class AbstractCalculator(QtWidgets.QMainWindow):
+    __metacalss = ABCMeta
+    @abstractmethod
+    def connectSignalSlots(self):
+        #  connect signals and slots 
+        pass
+    @abstractmethod
+    def calculate(self):
+        # makes necessary calculations for clustering
+        pass
+    @abstractmethod
+    def resetParameters(self):
+        # resets the parameters in the ui to their defaults
+        pass
+
+class KMeansCalculator(AbstractCalculator,Ui_kMeansWindow):
     def __init__(self,parent=None):
         super().__init__(parent)
        
@@ -65,12 +69,13 @@ class KMeansCalculator(QtWidgets.QMainWindow,Ui_kMeansWindow):
         
         km = self.kmeans.fit(data)
         self.setLabels(km.labels_)
+        # print("calculator labels =" ,km.labels_)
         # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
         # cluster = np.hstack((ind,labels[:,None]))
         # cluster = cluster[cluster[:, -1].argsort()]
         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
         self.setCenters(km.cluster_centers_)
-        
+        self.close()
         
     def setCenters(self,centers):
         self.kMeans_centers = centers
@@ -89,7 +94,7 @@ class KMeansCalculator(QtWidgets.QMainWindow,Ui_kMeansWindow):
         self.tol_lineEdit.setText("0.0001")
         self.algorithm_comboBox.setCurrentIndex(0)
 
-class AffinityPropagationCalculator(QtWidgets.QMainWindow,Ui_apWindow):
+class AffinityPropagationCalculator(AbstractCalculator,Ui_apWindow):
     def __init__(self,parent=None):
         super().__init__(parent)
        
@@ -118,6 +123,7 @@ class AffinityPropagationCalculator(QtWidgets.QMainWindow,Ui_apWindow):
         # cluster = cluster[cluster[:, -1].argsort()]
         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
         self.setCenters(ap.cluster_centers_)
+        self.close()
         
         
     def setCenters(self,centers):
@@ -135,7 +141,7 @@ class AffinityPropagationCalculator(QtWidgets.QMainWindow,Ui_apWindow):
         self.max_iter_lineEdit.setText("200")
         self.affinity_comboBox.setCurrentIndex(0)
         
-class meanShiftCalculator(QtWidgets.QMainWindow,Ui_msWindow):
+class meanShiftCalculator(AbstractCalculator,Ui_msWindow):
     def __init__(self,parent=None):
         super().__init__(parent)
        
@@ -166,6 +172,7 @@ class meanShiftCalculator(QtWidgets.QMainWindow,Ui_msWindow):
         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
         self.setCenters(ms.cluster_centers_)        
         
+        self.close()
     def setCenters(self,centers):
         self.ms_centers = centers
     def getCenters(self):
@@ -180,7 +187,7 @@ class meanShiftCalculator(QtWidgets.QMainWindow,Ui_msWindow):
         self.n_jobs_lineEdit.setText("1")        
         self.max_iter_lineEdit.setText("300")
 
-class dbScanCalculator(QtWidgets.QMainWindow,Ui_dbScanWindow):
+class dbScanCalculator(AbstractCalculator,Ui_dbScanWindow):
      def __init__(self,parent=None):
          super().__init__(parent)
         
@@ -210,6 +217,7 @@ class dbScanCalculator(QtWidgets.QMainWindow,Ui_dbScanWindow):
          # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
          # self.setCenters(dbs.cluster_centers_)
          
+         self.close()
          
      def setCenters(self,centers=[]):
          self.dbs_centers = centers
@@ -226,7 +234,7 @@ class dbScanCalculator(QtWidgets.QMainWindow,Ui_dbScanWindow):
          self.n_jobs_lineEdit.setText("1")   
          self.algorithm_comboBox.setCurrentIndex(0)
         
-class hcCalculator(QtWidgets.QMainWindow,Ui_hcWindow):
+class hcCalculator(AbstractCalculator,Ui_hcWindow):
      def __init__(self,parent=None):
          super().__init__(parent)
         
@@ -256,6 +264,8 @@ class hcCalculator(QtWidgets.QMainWindow,Ui_hcWindow):
          # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
          self.setCenters(hc.cluster_centers_)
          
+         self.close()
+         
      def setCenters(self,centers):
          self.hc_centers = centers
      def getCenters(self):
@@ -271,7 +281,7 @@ class hcCalculator(QtWidgets.QMainWindow,Ui_hcWindow):
          self.linkage_comboBox.setCurrentIndex(0)
          self.computeFullTree_comboBox.setCurrentIndex(0)
          
-class scCalculator(QtWidgets.QMainWindow,Ui_scWindow):
+class scCalculator(AbstractCalculator,Ui_scWindow):
     def __init__(self,parent=None):
         super().__init__(parent)
        
@@ -311,6 +321,7 @@ class scCalculator(QtWidgets.QMainWindow,Ui_scWindow):
         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
         # self.setCenters(sc.cluster_centers_)
         
+        self.close()
         
     def setCenters(self,centers):
         self.sc_centers = centers
