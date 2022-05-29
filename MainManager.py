@@ -8,7 +8,7 @@ Created on Thu May 26 14:56:23 2022
 
 from UndoRedo import InitialSolutionGraph
 from MainWindow import Ui_MainWindow
-from PyQt5.QtCore import QObject,pyqtSignal
+
 from DataHolder import DataHolder
 from SignalSlotCommunicationManager import SignalSlotCommunicationManager
 from dataOperations import KMeansCalculator
@@ -17,15 +17,15 @@ from dataOperations import meanShiftCalculator
 from dataOperations import dbScanCalculator
 from dataOperations import hcCalculator
 from dataOperations import scCalculator
-from PyQt5 import QtWidgets,QtGui,QtCore
-from PyQt5.QtWidgets import QFileDialog,QUndoStack,QUndoCommand
+
+from PyQt5 import QtWidgets,QtCore
+from PyQt5.QtWidgets import QFileDialog,QUndoStack
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import time
 
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):  
     
@@ -35,18 +35,17 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.setupUi(self)
         
         # self.createUndoRedo()
-        self.undoStack = QUndoStack()
+        self.initialUndoStack = QUndoStack()
         self.connectSignalSlots()        
         self.dataHolder = DataHolder()
         self.specialSignalSlots() 
         self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
-        
-        dummyCmd = InitialSolutionGraph(self.initialSolution_graphicsView, self.initialSolution_scene)
-        self.undoStack.push(dummyCmd)
-
-        # self.initialSolution_scene.addWidget(self.initialSolution_canvas)
+        self.undoRedoFlag = True
+        self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView, self.initialSolution_scene))
+    
 
     def connectSignalSlots(self):
+        
         # file actions
         self.fileAction_openData.triggered.connect(self.openFile)
         self.fileAction_Exit.triggered.connect(lambda: self.close())
@@ -58,13 +57,19 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.initialButton_exportAsInitialSolution.clicked.connect(lambda :self.saveToFile("saveAs","initial"))
         
         #  edit actions
-        self.editAction_clearInitialSolution.triggered.connect(lambda: self.initialSolution_scene.clear())
-        self.editAction_undoInitialSolution.triggered.connect(self.undoStack.undo)
-        self.editAction_redoInitialSolution.triggered.connect(self.undoStack.redo)
+        self.editAction_clearInitialSolution.triggered.connect(lambda: {self.initialSolution_scene.clear(),
+                                                                        self.initialUndoStack.clear()})
+        self.editAction_undoInitialSolution.triggered.connect(self.initialUndoStack.undo)
+        self.editAction_redoInitialSolution.triggered.connect(self.initialUndoStack.redo)
+        # self.initialUndoStack.createUndoAction(self.editAction_undoInitialSolution,"self.printInitialSolution")
+        # self.initialUndoStack.createRedoAction(self.editAction_redoInitialSolution,"self.printInitialSolution")
         #  edit buttons
-        self.initialButton_clearInitialSolution.clicked.connect(lambda: self.initialSolution_scene.clear())
-        self.initialButton_undo.clicked.connect(self.undoStack.undo)
-        self.initialButton_redo.clicked.connect(self.undoStack.redo)
+        self.initialButton_clearInitialSolution.clicked.connect(lambda: {self.initialSolution_scene.clear(),
+                                                                        self.initialUndoStack.clear()})
+        # self.initialUndoStack.createUndoAction(self.initialButton_undo,"self.printInitialSolution")
+        # self.initialUndoStack.createRedoAction(self.initialButton_redo,"self.printInitialSolution")
+        self.initialButton_undo.clicked.connect(self.initialUndoStack.undo)
+        self.initialButton_redo.clicked.connect(self.initialUndoStack.redo)
         # self.initial
         
         # clustering actions
@@ -85,13 +90,15 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
     def specialSignalSlots(self):
         self.communicator = SignalSlotCommunicationManager()
         self.communicator.fileOpened.connect(self.printInitialSolution)
+        self.initialUndoStack.canUndoChanged.connect(lambda: self.enableInitialUndo(self.initialUndoStack.canUndo()))
+        self.initialUndoStack.canRedoChanged.connect(lambda: self.enableInitialRedo(self.initialUndoStack.canRedo()))
         
-    # def resizeEvent(self, event):
-    #     self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
-    #     QtWidgets.QMainWindow.resizeEvent(self, event)
+    def resizeEvent(self, event):
+        self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
+        QtWidgets.QMainWindow.resizeEvent(self, event)
         
     def enableAfterDataObtained(self):
-        print("enableAfterDataObtained")
+        # print("enableAfterDataObtained")
         # file actions
         self.fileAction_saveFinalSolution.setEnabled(True)
         # file buttons
@@ -99,12 +106,10 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         
         # edit actions
         self.editAction_clearInitialSolution.setEnabled(True)
-        self.editAction_undoInitialSolution.setEnabled(True)
-        self.editAction_redoInitialSolution.setEnabled(True)
+
         #  edit buttons
         self.initialButton_clearInitialSolution.setEnabled(True)
-        self.initialButton_undo.setEnabled(True)
-        self.initialButton_redo.setEnabled(True)
+
         
         # clustering actions
         self.clusteringAction_KMeans.setEnabled(True)
@@ -117,8 +122,7 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.clustering_hLayout.setEnabled(True)
         
     def openFile(self):
-        # self.stack.push(self.openFile)
-        print("openFile")
+
         self.filePath = QFileDialog.getOpenFileName(filter = "Data files (*.txt)")[0]
         df = pd.read_csv(self.filePath,sep=" ",header=None)
         df.columns = ["X","Y"]
@@ -126,11 +130,9 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.dataHolder.setInitialData(data)
         self.communicator.fileOpened.emit()
         self.enableAfterDataObtained()
-        # self.undoRedo(self.openFile, [],[],lambda:{print("asdf")})
-        # self.printInitialSolution(self,labels=[],centers=[])
 
     def saveToFile(self,option,solution):  
-        self.stack.push(self.saveToFile)
+
         if solution == "initial":
             data = self.getInitialData()
             if option == "save":
@@ -150,16 +152,10 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
 
             
         
-    def printInitialSolution(self,labels=[],centers=[]): 
+    def printInitialSolution(self, labels=[],centers=[]): 
         data = self.dataHolder.getInitialData()
-        command = InitialSolutionGraph(self.initialSolution_graphicsView,self.initialSolution_scene,data,labels,centers,)
-        self.undoStack.push(command)
+        self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView,self.initialSolution_scene,data,labels,centers))
 
-        # self.iter = 0
-        # data = self.dataHolder.getInitialData()
-        # command = InitialSolutionUndoRedo(self.initialSolution_graphicsView)
-        # self.undoStack.push(command)
-        # self.iter +=1
         # # self.stack.push(self.printInitialSolution)                       
         
         # # self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
@@ -228,23 +224,13 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.scWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.scWindow.getLabels(),
                                                                                  self.scWindow.getCenters())})
     
-        
-
-
-    def undo(self):
-        print("main undo")
-        # self.undoRedo.undo()
-        self.undoStack.undo()
-        # self.printInitialSolution(self.undoRedo.undo())
-        # print(self.undoRedo.undoRedoStack)
-        
-    def redo(self):
-        print("main redo")
-        self.undoStack.redo()
-        # self.printInitialSolution(self.undoRedo.redo())
-        # print(self.undoRedo.undoRedoStack)
-         
-
+    
+    def enableInitialUndo(self,selection):
+         self.initialButton_undo.setEnabled(selection)
+         self.editAction_undoInitialSolution.setEnabled(selection)
+    def enableInitialRedo(self,selection):        
+        self.initialButton_redo.setEnabled(selection)        
+        self.editAction_redoInitialSolution.setEnabled(selection)
 
         
 
@@ -289,12 +275,14 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         # self.heuristicsAction_simulatedAnneling.setText(_translate("MainWindow", "Simulated Anneling"))
 
                   
-
+    
         
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     win = MainManager()
     win.show()
+    app.aboutToQuit.connect(lambda: {time.sleep(1),win.deleteLater()})
+    
     sys.exit(app.exec())
         

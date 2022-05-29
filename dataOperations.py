@@ -5,14 +5,13 @@ Created on Thu May 26 20:19:55 2022
 @author: piton
 """
 from DataHolder import DataHolder
-from PyQt5 import QtWidgets,QtGui
+from PyQt5 import QtWidgets
 from KMeansWindow import Ui_kMeansWindow
 from AffinityPropagationWindow import Ui_apWindow
 from DBSCANWindow import Ui_dbScanWindow
 from HierarchicalClusteringWindow import Ui_hcWindow
 from MeanShiftWindow import Ui_msWindow
 from SpectralClusteringWindow import Ui_scWindow
-import numpy as np
 
 from sklearn.cluster import KMeans
 from sklearn.cluster import AffinityPropagation
@@ -21,7 +20,6 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 
-from SignalSlotCommunicationManager import SignalSlotCommunicationManager
 
 from abc import ABCMeta, abstractmethod
 

@@ -7,4 +7,6 @@ Created on Thu May 26 17:07:19 2022
 from PyQt5.QtCore import QObject,pyqtSignal
 class SignalSlotCommunicationManager(QObject):
     fileOpened = pyqtSignal()
+    undoEvent = pyqtSignal()
+    redoEvent = pyqtSignal()
     
