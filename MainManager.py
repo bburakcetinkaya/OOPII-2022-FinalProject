@@ -19,7 +19,8 @@ from dataOperations import hcCalculator
 from dataOperations import scCalculator
 
 from PyQt5 import QtWidgets,QtCore
-from PyQt5.QtWidgets import QFileDialog,QUndoStack
+from PyQt5.QtWidgets import QFileDialog,QUndoStack,QUndoView
+from PyQt5.QtCore import QTimer
 
 import numpy as np
 import pandas as pd
@@ -40,7 +41,7 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.dataHolder = DataHolder()
         self.specialSignalSlots() 
         self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
-        self.undoRedoFlag = True
+        # self.undoRedoFlag = True
         self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView, self.initialSolution_scene))
     
 
@@ -68,8 +69,9 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
                                                                         self.initialUndoStack.clear()})
         # self.initialUndoStack.createUndoAction(self.initialButton_undo,"self.printInitialSolution")
         # self.initialUndoStack.createRedoAction(self.initialButton_redo,"self.printInitialSolution")
-        self.initialButton_undo.clicked.connect(self.initialUndoStack.undo)
+        self.initialButton_undo.clicked.connect(lambda: {self.initialUndoStack.undo(),self.holdButton()})
         self.initialButton_redo.clicked.connect(self.initialUndoStack.redo)
+
         # self.initial
         
         # clustering actions
@@ -86,6 +88,13 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.clusteringButton_meanShift.clicked.connect(self.meanShift)
         self.clusteringButton_DBSCAN.clicked.connect(self.dbScan)
         self.clusteringButton_spectralClustering.clicked.connect(self.spectralClustering)
+    def holdButton(self):
+        QTimer.singleShot(800, self.holdedEnough)
+
+    def holdedEnough(self):
+        self.undoView = QUndoView()
+        self.undoView.setStack(self.initialUndoStack)
+        self.undoView.show()
         
     def specialSignalSlots(self):
         self.communicator = SignalSlotCommunicationManager()
@@ -129,6 +138,7 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         data = np.array(df)
         self.dataHolder.setInitialData(data)
         self.communicator.fileOpened.emit()
+        # self.printInitialSolution()
         self.enableAfterDataObtained()
 
     def saveToFile(self,option,solution):  

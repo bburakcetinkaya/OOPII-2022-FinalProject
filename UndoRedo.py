@@ -19,15 +19,19 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
         self.__data = data
         self.__labels = labels
         self.__centers = centers  
+        self.__redoFlag = False
+        self.__undoFlag = False
+        
         self.communicator = SignalSlotCommunicationManager()
         self.communicator.undoEvent.connect(self.printGraph)
         self.communicator.redoEvent.connect(self.printGraph)
+        # self.printGraph()
     def printGraph(self):
         # print("id = ",QUndoCommand.id(self))
         self.initialSolution_figure = plt.figure()
         self.initialSolution_canvas = FigureCanvas(self.initialSolution_figure)
                 
-        self.initialSolution_figure.clear()
+        # self.initialSolution_figure.clear()
         ploting = self.initialSolution_figure.add_subplot(111)
         if len(self.__data):
             ploting.scatter(self.__data[:,0], self.__data[:,1],color="k",s=50) 
@@ -37,18 +41,32 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
             ploting.scatter(self.__data[:,0], self.__data[:,1],c = self.__labels,s = 50,cmap = 'rainbow')
             print("lbl")
         if len(self.__centers):
-            ploting.scatter(self.__centers[:, 0],self.__centers[:, 1],c = "red",s = 50, marker="x",alpha = 1,linewidth=1)
+            ploting.scatter(self.__centers[:, 0],self.__centers[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
             print("center")
         self.initialSolution_scene.addWidget(self.initialSolution_canvas)
         self.initialSolution_graphicsView.setScene(self.initialSolution_scene)   
         self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
             
     def undo(self): 
+        # if  self.__undoFlag:
+        #     self.communicator.undoEvent.emit()
+        #     self.communicator.undoEvent.emit()
+        #     self.__redoFlag = False
+        #     self.__undoFlag = True
+        # else:
+            self.communicator.undoEvent.emit()
 
-        self.communicator.undoEvent.emit()
+            
+        
     def redo(self):
+        # if  self.__redoFlag:
+        #     self.communicator.redoEvent.emit()
+        #     self.communicator.redoEvent.emit()
+        #     self.__redoFlag = True
+        #     self.__undoFlag = False
+        # else:
+            self.communicator.redoEvent.emit()
 
-        self.communicator.redoEvent.emit()
 
 
   
