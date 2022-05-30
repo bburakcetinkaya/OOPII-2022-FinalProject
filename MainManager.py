@@ -24,7 +24,6 @@ from PyQt5.QtCore import QTimer
 
 import numpy as np
 import pandas as pd
-import time
 
 
 
@@ -37,12 +36,14 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         
         # self.createUndoRedo()
         self.initialUndoStack = QUndoStack()
+        self.initialUndoStack.cleanIndex()
+        # self.initialUndoStack.clear()
         self.connectSignalSlots()        
         self.dataHolder = DataHolder()
         self.specialSignalSlots() 
         self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
         # self.undoRedoFlag = True
-        self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView, self.initialSolution_scene))
+        # self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView, self.initialSolution_scene))
     
 
     def connectSignalSlots(self):
@@ -69,7 +70,9 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
                                                                         self.initialUndoStack.clear()})
         # self.initialUndoStack.createUndoAction(self.initialButton_undo,"self.printInitialSolution")
         # self.initialUndoStack.createRedoAction(self.initialButton_redo,"self.printInitialSolution")
-        self.initialButton_undo.clicked.connect(lambda: {self.initialUndoStack.undo(),self.holdButton()})
+        self.initialButton_undo.pressed.connect(lambda: {self.initialUndoStack.undo(),self.holdButton()})
+        self.initialButton_undo.released.connect(lambda : self.mouseReleasedEvent())
+        # self.initialButton_undo.released.connect(self.releaseEvent)
         self.initialButton_redo.clicked.connect(self.initialUndoStack.redo)
 
         # self.initial
@@ -88,10 +91,25 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.clusteringButton_meanShift.clicked.connect(self.meanShift)
         self.clusteringButton_DBSCAN.clicked.connect(self.dbScan)
         self.clusteringButton_spectralClustering.clicked.connect(self.spectralClustering)
+        
     def holdButton(self):
-        QTimer.singleShot(800, self.holdedEnough)
-
-    def holdedEnough(self):
+        self.timer = QTimer()
+        self.heldTime = 0
+        self.timer.start(100)
+        self.timer.timeout.connect(self.timePassedEvent)
+        
+    def mouseReleasedEvent(self):
+        print("release")
+        self.timer.stop()
+        
+    def timePassedEvent(self):
+        self.heldTime +=1
+        print(self.heldTime)
+        if self.heldTime >= 8:
+            self.showUndoView()
+            self.timer.stop()
+            
+    def showUndoView(self):
         self.undoView = QUndoView()
         self.undoView.setStack(self.initialUndoStack)
         self.undoView.show()
@@ -162,10 +180,12 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
 
             
         
-    def printInitialSolution(self, labels=[],centers=[]): 
+    def printInitialSolution(self,description="", labels=[],centers=[]): 
         data = self.dataHolder.getInitialData()
-        self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView,self.initialSolution_scene,data,labels,centers))
-
+        self.initialUndoStack.beginMacro(description)
+        self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView,self.initialSolution_scene,"print data",data,labels,centers))
+        self.initialUndoStack.endMacro()
+        
         # # self.stack.push(self.printInitialSolution)                       
         
         # # self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
@@ -201,38 +221,43 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         # self.stack.push(self.kMeans)
         self.kmWindow = KMeansCalculator()
         self.kmWindow.show()
-        self.kmWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.kmWindow.getLabels(),
-                                                                                 self.kmWindow.getCenters())})
+        self.kmWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(description="K-Means",
+                                                                                 labels=self.kmWindow.getLabels(),
+                                                                                 centers=self.kmWindow.getCenters())})
     def affinityPropagation(self):
         # self.stack.push(self.affinityPropagation)
         self.apWindow = AffinityPropagationCalculator()
         self.apWindow.show()
-        self.apWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.apWindow.getLabels(),
-                                                                                 self.apWindow.getCenters())})
+        self.apWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(description="Affinity Propagation",
+                                                                                 labels=self.apWindow.getLabels(),
+                                                                                 centers=self.apWindow.getCenters())})
     def meanShift(self):
         # self.stack.push(self.meanShift)
         self.msWindow = meanShiftCalculator()
         self.msWindow.show()
-        self.msWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.msWindow.getLabels(),
-                                                                                 self.msWindow.getCenters())})
+        self.msWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(description="Mean-Shift",
+                                                                                 labels=self.msWindow.getLabels(),
+                                                                                 centers=self.msWindow.getCenters())})
     def dbScan(self):
         # self.stack.push(self.dbScan)
         self.dbScanWindow = dbScanCalculator()
         self.dbScanWindow.show()
-        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.dbScanWindow.getLabels(),
-                                                                                     self.dbScanWindow.getCenters())})
+        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(description="DBSCAN",
+                                                                                     labels=self.dbScanWindow.getLabels(),
+                                                                                     centers=self.dbScanWindow.getCenters())})
     def hClustering(self):
         # self.stack.push(self.hClustering)
         self.hcWindow = hcCalculator()
         self.hcWindow.show()
-        self.hcWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.hcWindow.getLabels(),
-                                                                                 self.hcWindow.getCenters())})
+        self.hcWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(labels=self.hcWindow.getLabels(),
+                                                                                 centers=self.hcWindow.getCenters())})
     def spectralClustering(self):
         # self.stack.push(self.spectralClustering)
         self.scWindow = scCalculator()
         self.scWindow.show()
-        self.scWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(self.scWindow.getLabels(),
-                                                                                 self.scWindow.getCenters())})
+        self.scWindow.OKButton.clicked.connect(lambda:{self.printInitialSolution(description="Spectral Clustering",
+                                                                                 labels=self.scWindow.getLabels(),
+                                                                                 centers=self.scWindow.getCenters())})
     
     
     def enableInitialUndo(self,selection):
@@ -287,12 +312,5 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
                   
     
         
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    win = MainManager()
-    win.show()
-    app.aboutToQuit.connect(lambda: {time.sleep(1),win.deleteLater()})
-    
-    sys.exit(app.exec())
+
         

@@ -20,6 +20,13 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 
+# from sklearn.cluster import DBSCAN
+from sklearn import metrics
+from sklearn.datasets import make_blobs
+from sklearn.preprocessing import StandardScaler
+
+import numpy as np
+
 
 from abc import ABCMeta, abstractmethod
 
@@ -200,6 +207,12 @@ class dbScanCalculator(AbstractCalculator,Ui_dbScanWindow):
          self.resetButton.clicked.connect(self.resetParameters)
 
      def calculate(self):
+         # ---------------------------------
+         # centers = [[1, 1], [-1, -1], [1, -1]]
+         # data, labels_true = make_blobs(n_samples=750, centers=centers, cluster_std=0.4, random_state=0)   
+                            
+         # data = StandardScaler().fit_transform(data)
+         # ---------------------------------
          self.eps = float(self.eps_lineEdit.text())
          self.min_samples = int(self.min_samples_lineEdit.text())
          self.n_jobs = int(self.n_jobs_lineEdit.text())
@@ -208,13 +221,22 @@ class dbScanCalculator(AbstractCalculator,Ui_dbScanWindow):
          self.dbs = DBSCAN(eps=self.eps, min_samples=self.min_samples,
                               n_jobs=self.n_jobs ,algorithm=self.algorithm)
          dbs = self.dbs.fit(data)
+         # core_samples_mask = np.zeros_like(dbs.labels_, dtype=bool)
+         # core_samples_mask[dbs.core_sample_indices_] = True
          self.setLabels(dbs.labels_)
+         # print("lbl: ",dbs.labels_)
+         # self.n_clusters_ = len(set(dbs.labels_)) - (1 if -1 in dbs.labels_ else 0)
+         # self.n_noise_ = list(dbs.labels_).count(-1)
+         # print()
+         # print(self.n_noise_)
+         # print()
+         # print(self.n_clusters_)
          # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
          # cluster = np.hstack((ind,labels[:,None]))
          # cluster = cluster[cluster[:, -1].argsort()]
          # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
          # self.setCenters(dbs.cluster_centers_)
-         
+         print(dbs.labels_)
          self.close()
          
      def setCenters(self,centers=[]):
@@ -260,7 +282,7 @@ class hcCalculator(AbstractCalculator,Ui_hcWindow):
          # cluster = np.hstack((ind,labels[:,None]))
          # cluster = cluster[cluster[:, -1].argsort()]
          # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-         self.setCenters(hc.cluster_centers_)
+         # self.setCenters(hc.cluster_centers_)
          
          self.close()
          

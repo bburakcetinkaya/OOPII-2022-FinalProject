@@ -3,11 +3,10 @@ from SignalSlotCommunicationManager import SignalSlotCommunicationManager
 # from MainWindow import Ui_MainWindow
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
     
 class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
 
-    def __init__(self,initialSolution_graphicsView,initialSolution_scene,data=[],labels=[],centers=[]):
+    def __init__(self,initialSolution_graphicsView,initialSolution_scene,description="",data=[],labels=[],centers=[]):
         """
 
         """
@@ -19,14 +18,18 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
         self.__data = data
         self.__labels = labels
         self.__centers = centers  
-        self.__redoFlag = False
-        self.__undoFlag = False
+        self.__redoFlag = True
+        self.__undoFlag = True
+        self.__description = description
+        QUndoCommand.setText(self, description)
+        # print("init")
         
         self.communicator = SignalSlotCommunicationManager()
         self.communicator.undoEvent.connect(self.printGraph)
         self.communicator.redoEvent.connect(self.printGraph)
         # self.printGraph()
     def printGraph(self):
+        # print("print")
         # print("id = ",QUndoCommand.id(self))
         self.initialSolution_figure = plt.figure()
         self.initialSolution_canvas = FigureCanvas(self.initialSolution_figure)
@@ -35,37 +38,24 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
         ploting = self.initialSolution_figure.add_subplot(111)
         if len(self.__data):
             ploting.scatter(self.__data[:,0], self.__data[:,1],color="k",s=50) 
-            print("data")
+            # print("data")
 
         if len(self.__labels):
             ploting.scatter(self.__data[:,0], self.__data[:,1],c = self.__labels,s = 50,cmap = 'rainbow')
-            print("lbl")
+            # print("lbl")
         if len(self.__centers):
             ploting.scatter(self.__centers[:, 0],self.__centers[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
-            print("center")
+            # print("center")
         self.initialSolution_scene.addWidget(self.initialSolution_canvas)
         self.initialSolution_graphicsView.setScene(self.initialSolution_scene)   
         self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
             
     def undo(self): 
-        # if  self.__undoFlag:
-        #     self.communicator.undoEvent.emit()
-        #     self.communicator.undoEvent.emit()
-        #     self.__redoFlag = False
-        #     self.__undoFlag = True
-        # else:
-            self.communicator.undoEvent.emit()
-
-            
+        self.communicator.undoEvent.emit()
         
     def redo(self):
-        # if  self.__redoFlag:
-        #     self.communicator.redoEvent.emit()
-        #     self.communicator.redoEvent.emit()
-        #     self.__redoFlag = True
-        #     self.__undoFlag = False
-        # else:
-            self.communicator.redoEvent.emit()
+        self.communicator.redoEvent.emit()
+        
 
 
 
