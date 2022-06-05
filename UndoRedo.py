@@ -38,10 +38,14 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
         ploting = self.initialSolution_figure.add_subplot(111)
         if len(self.__data):
             ploting.scatter(self.__data[:,0], self.__data[:,1],color="k",s=50) 
+            # for i in range(len(self.__data)):
+            #     plt.annotate(str(i),(self.__data[:,0], self.__data[:,1]))
             # print("data")
 
         if len(self.__labels):
             ploting.scatter(self.__data[:,0], self.__data[:,1],c = self.__labels,s = 50,cmap = 'rainbow')
+            # for i in range(len(self.__data)):
+            #     plt.annotate(str(i),(self.__data[:,0], self.__data[:,1]))
             # print("lbl")
         if len(self.__centers):
             ploting.scatter(self.__centers[:, 0],self.__centers[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
@@ -52,6 +56,7 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
             
     def undo(self): 
         self.communicator.undoEvent.emit()
+        
         
     def redo(self):
         self.communicator.redoEvent.emit()

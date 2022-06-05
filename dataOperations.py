@@ -25,6 +25,9 @@ from sklearn import metrics
 from sklearn.datasets import make_blobs
 from sklearn.preprocessing import StandardScaler
 
+from scipy.spatial import distance
+from itertools import combinations
+
 import numpy as np
 
 
@@ -69,18 +72,65 @@ class KMeansCalculator(AbstractCalculator,Ui_kMeansWindow):
         self.tol = float(self.tol_lineEdit.text())
         self.algorithm = str(self.algorithm_comboBox.currentText())
         data = self.DataHolder.getInitialData()
+        print(data)
         self.kmeans = KMeans(n_clusters=self.n_clusters, init=self.init, n_init=self.n_init, 
                              max_iter=self.max_iter, tol=self.tol, algorithm=self.algorithm)
         
         km = self.kmeans.fit(data)
         self.setLabels(km.labels_)
-        # print("calculator labels =" ,km.labels_)
-        # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
-        # cluster = np.hstack((ind,labels[:,None]))
-        # cluster = cluster[cluster[:, -1].argsort()]
-        # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
+        self.DataHolder.setLabels(km.labels_)
+        cluster = [0]*self.n_clusters
+        for i in range(0,(self.n_clusters)):
+            cluster[i] = (np.where(km.labels_==i))
+        self.DataHolder.setClusterIndices(cluster)    
+        
         self.setCenters(km.cluster_centers_)
+        
+        self.DataHolder.setCenters(km.cluster_centers_)
+        
+        center_nodes = []  
+        centers = km.cluster_centers_ 
+        dist = distance.cdist( centers, data, metric="euclidean" )
+        for i in range(0,self.n_clusters):
+            center_nodes.append(np.where(dist[i] == min(dist[i])))
+
+        center_nodes = np.array(center_nodes)
+        center_nodes = center_nodes.reshape(1,self.n_clusters)
+        center_nodes = list(*center_nodes)    
+        self.DataHolder.setCenterNodes(center_nodes)
+        
+        farhest_dist = {}
+        farhest_dist = dict.fromkeys(center_nodes, 0)
+        for i in range(0,self.n_clusters):
+            farhest_dist[center_nodes[i]] = (max(dist[i]))            
+        self.DataHolder.setFarhestHubDistances(farhest_dist)
+        
+        pair_combinations = combinations(list(center_nodes),2)
+        pair_combinations = list(pair_combinations)
+        self.DataHolder.setPairCombinations(pair_combinations)
+        
+        pair_objectives = np.zeros(len(pair_combinations))
+        for i in range(0,len(pair_combinations)):
+            cluster_i = pair_combinations[i][0]
+            cluster_j = pair_combinations[i][1]
+            dihi = farhest_dist[cluster_i]
+            
+            p1 = data[cluster_i]
+            p1 = p1.reshape(1,2)
+            p2 = data[cluster_j]
+            p2 = p2.reshape(1,2)
+            dhihj = distance.cdist(p1 ,p2,metric="euclidean")
+            djhj = farhest_dist[cluster_j]
+            objij = dihi+0.75*dhihj+djhj
+            pair_objectives[i] = (objij)
+        
+        self.DataHolder.setPairObjectives(pair_objectives)
+        objective_result = max(pair_objectives)
+        self.DataHolder.setObjectiveResult(objective_result)
+        
         self.close()
+        
+
         
     def setCenters(self,centers):
         self.kMeans_centers = centers
@@ -123,11 +173,59 @@ class AffinityPropagationCalculator(AbstractCalculator,Ui_apWindow):
                                       max_iter=self.max_iter, affinity=self.affinity)
         ap = self.ap.fit(data)
         self.setLabels(ap.labels_)
+        self.DataHolder.setLabels(ap.labels_)
+        self.n_clusters = len(np.unique(ap.labels_))
+        cluster = [0]*self.n_clusters
+        for i in range(0,(self.n_clusters)):
+            cluster[i] = (np.where(ap.labels_==i))
+        self.DataHolder.setClusterIndices(cluster)
         # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
         # cluster = np.hstack((ind,labels[:,None]))
         # cluster = cluster[cluster[:, -1].argsort()]
         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
         self.setCenters(ap.cluster_centers_)
+        self.DataHolder.setCenters(ap.cluster_centers_)
+        
+        center_nodes = []  
+        centers = ap.cluster_centers_ 
+        dist = distance.cdist( centers, data, metric="euclidean" )
+        for i in range(0,self.n_clusters):
+            center_nodes.append(np.where(dist[i] == min(dist[i])))
+
+        center_nodes = np.array(center_nodes)
+        center_nodes = center_nodes.reshape(1,self.n_clusters)
+        center_nodes = list(*center_nodes)    
+        self.DataHolder.setCenterNodes(center_nodes)
+        
+        farhest_dist = {}
+        farhest_dist = dict.fromkeys(center_nodes, 0)
+        for i in range(0,self.n_clusters):
+            farhest_dist[center_nodes[i]] = (max(dist[i]))            
+        self.DataHolder.setFarhestHubDistances(farhest_dist)
+        
+        pair_combinations = combinations(list(center_nodes),2)
+        pair_combinations = list(pair_combinations)
+        self.DataHolder.setPairCombinations(pair_combinations)
+        
+        pair_objectives = np.zeros(len(pair_combinations))
+        for i in range(0,len(pair_combinations)):
+            cluster_i = pair_combinations[i][0]
+            cluster_j = pair_combinations[i][1]
+            dihi = farhest_dist[cluster_i]
+            
+            p1 = data[cluster_i]
+            p1 = p1.reshape(1,2)
+            p2 = data[cluster_j]
+            p2 = p2.reshape(1,2)
+            dhihj = distance.cdist(p1 ,p2,metric="euclidean")
+            djhj = farhest_dist[cluster_j]
+            objij = dihi+0.75*dhihj+djhj
+            pair_objectives[i] = (objij)
+        
+        self.DataHolder.setPairObjectives(pair_objectives)
+        objective_result = max(pair_objectives)
+        self.DataHolder.setObjectiveResult(objective_result)
+        
         self.close()
         
         
@@ -171,11 +269,57 @@ class meanShiftCalculator(AbstractCalculator,Ui_msWindow):
         
         ms = self.ms.fit(data)
         self.setLabels(ms.labels_)
+        self.DataHolder.setLabels(ms.labels_)
+        self.n_clusters = len(np.unique(ms.labels_))
+        cluster = [0]*self.n_clusters
+        for i in range(0,(self.n_clusters)):
+            cluster[i] = (np.where(ms.labels_==i))
+        self.DataHolder.setClusterIndices(cluster)
         # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
         # cluster = np.hstack((ind,labels[:,None]))
         # cluster = cluster[cluster[:, -1].argsort()]
         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-        self.setCenters(ms.cluster_centers_)        
+        self.setCenters(ms.cluster_centers_)  
+        self.DataHolder.setCenters(ms.cluster_centers_)
+        center_nodes = []  
+        centers = ms.cluster_centers_ 
+        dist = distance.cdist( centers, data, metric="euclidean" )
+        for i in range(0,self.n_clusters):
+            center_nodes.append(np.where(dist[i] == min(dist[i])))
+
+        center_nodes = np.array(center_nodes)
+        center_nodes = center_nodes.reshape(1,self.n_clusters)
+        center_nodes = list(*center_nodes)    
+        self.DataHolder.setCenterNodes(center_nodes)
+        
+        farhest_dist = {}
+        farhest_dist = dict.fromkeys(center_nodes, 0)
+        for i in range(0,self.n_clusters):
+            farhest_dist[center_nodes[i]] = (max(dist[i]))            
+        self.DataHolder.setFarhestHubDistances(farhest_dist)
+        
+        pair_combinations = combinations(list(center_nodes),2)
+        pair_combinations = list(pair_combinations)
+        self.DataHolder.setPairCombinations(pair_combinations)
+        
+        pair_objectives = np.zeros(len(pair_combinations))
+        for i in range(0,len(pair_combinations)):
+            cluster_i = pair_combinations[i][0]
+            cluster_j = pair_combinations[i][1]
+            dihi = farhest_dist[cluster_i]
+            
+            p1 = data[cluster_i]
+            p1 = p1.reshape(1,2)
+            p2 = data[cluster_j]
+            p2 = p2.reshape(1,2)
+            dhihj = distance.cdist(p1 ,p2,metric="euclidean")
+            djhj = farhest_dist[cluster_j]
+            objij = dihi+0.75*dhihj+djhj
+            pair_objectives[i] = (objij)
+        
+        self.DataHolder.setPairObjectives(pair_objectives)
+        objective_result = max(pair_objectives)
+        self.DataHolder.setObjectiveResult(objective_result)
         
         self.close()
     def setCenters(self,centers):
@@ -224,6 +368,11 @@ class dbScanCalculator(AbstractCalculator,Ui_dbScanWindow):
          # core_samples_mask = np.zeros_like(dbs.labels_, dtype=bool)
          # core_samples_mask[dbs.core_sample_indices_] = True
          self.setLabels(dbs.labels_)
+         self.DataHolder.setLabels(dbs.labels_)
+         cluster = [0]*self.n_clusters
+         for i in range(0,(self.n_clusters)):
+             cluster[i] = (np.where(dbs.labels_==i))
+         self.DataHolder.setClusterIndices(cluster)
          # print("lbl: ",dbs.labels_)
          # self.n_clusters_ = len(set(dbs.labels_)) - (1 if -1 in dbs.labels_ else 0)
          # self.n_noise_ = list(dbs.labels_).count(-1)
@@ -278,6 +427,11 @@ class hcCalculator(AbstractCalculator,Ui_hcWindow):
                                            linkage=self.linkage, compute_full_tree=self.computeFullTree)
          hc = self.hc.fit(data)
          self.setLabels(hc.labels_)
+         self.DataHolder.setLabels(hc.labels_)
+         cluster = [0]*self.n_clusters
+         for i in range(0,(self.n_clusters)):
+             cluster[i] = (np.where(hc.labels_==i))
+         self.DataHolder.setClusterIndices(cluster)
          # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
          # cluster = np.hstack((ind,labels[:,None]))
          # cluster = cluster[cluster[:, -1].argsort()]
@@ -328,6 +482,7 @@ class scCalculator(AbstractCalculator,Ui_scWindow):
         self.coef0 = float(self.coef0_lineEdit.text())
         self.n_jobs = int(self.n_jobs_lineEdit.text())
         data = self.DataHolder.getInitialData()
+        
         self.sc = SpectralClustering(n_clusters=self.n_clusters, eigen_solver=self.eigen_solver,
                                      n_init=self.n_init, n_components=self.n_components, 
                                      gamma=self.gamma, assign_labels=self.assign_labels,
@@ -335,6 +490,11 @@ class scCalculator(AbstractCalculator,Ui_scWindow):
         
         sc = self.sc.fit(data)
         self.setLabels(sc.labels_)
+        self.DataHolder.setLabels(sc.labels_)
+        cluster = [0]*self.n_clusters
+        for i in range(0,(self.n_clusters)):
+            cluster[i] = (np.where(sc.labels_==i))
+        self.DataHolder.setClusterIndices(cluster)
         # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
         # cluster = np.hstack((ind,labels[:,None]))
         # cluster = cluster[cluster[:, -1].argsort()]
