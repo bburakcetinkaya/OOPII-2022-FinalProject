@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QUndoCommand
 from SignalSlotCommunicationManager import SignalSlotCommunicationManager
 # from MainWindow import Ui_MainWindow
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     
 class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
@@ -48,7 +49,7 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
             #     plt.annotate(str(i),(self.__data[:,0], self.__data[:,1]))
             # print("lbl")
         if len(self.__centers):
-            ploting.scatter(self.__centers[:, 0],self.__centers[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
+            ploting.scatter(np.array(self.__centers)[:, 0],np.array(self.__centers)[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
             # print("center")
         self.initialSolution_scene.addWidget(self.initialSolution_canvas)
         self.initialSolution_graphicsView.setScene(self.initialSolution_scene)   

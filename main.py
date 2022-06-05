@@ -6,12 +6,12 @@ Created on Mon May 30 02:19:16 2022
 """
 from MainManager import MainManager
 from PyQt5 import QtWidgets
-import time
+# import time
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     win = MainManager()
     win.show()
-    app.aboutToQuit.connect(lambda: {time.sleep(1),win.deleteLater()})
+    # app.aboutToQuit.connect(lambda: {time.sleep(1),win.deleteLater()})
     
     sys.exit(app.exec())
