@@ -12,15 +12,19 @@ from sklearn.cluster import MeanShift
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
+from sklearn.datasets import make_blobs
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from scipy.spatial import distance
 from itertools import combinations
 
-df = pd.read_csv("C:/Users/piton/Desktop/projects/oop-proj2/data/10.txt",sep=" ",header=None)
-df.columns = ["X","Y"]
-X = np.array(df)
+# # df = pd.read_csv("C:/Users/piton/Desktop/projects/oop-proj2/data/10.txt",sep=" ",header=None)
+# # df.columns = ["X","Y"]
+# X = np.array(df)
+data, labels_true = make_blobs(n_samples=10, cluster_std=0.4, random_state=0)   
 # n_clusters=3
 # clustering = KMeans(n_clusters).fit(X)
 # labels = clustering.labels_
@@ -186,10 +190,10 @@ X = np.array(df)
 
 # objective_result = max(pair_objectives)
 # print(objective_result)
-
-ac = AgglomerativeClustering().fit(X)
+X = data
+ac = KMeans().fit(X)
 labels = ac.labels_
-n_clusters = ac.n_clusters_
+n_clusters = len(np.unique(ac.labels_))
 print("labels:")
 print(labels)
 print()
@@ -197,7 +201,7 @@ print("number of clusters: ",n_clusters)
     
 cluster = [0]*n_clusters
 for i in range(0,(n_clusters)):
-    cluster[i] = (np.where(labels==i))
+    cluster[i] = np.array((np.where(labels==i)))
 for i in range(0,(n_clusters)):
     print("cluster ",i,"-->",*cluster[i])
     
@@ -254,3 +258,47 @@ print("****Pair objectives****")
 print(pair_objectives)
 print()
 print("Objective result --> " ,objective_result)
+
+
+
+
+def RelocateHub():
+    for i in range(0,n_clusters):
+        # listeden center node lar silinecek öyle çalışır bence :) kolay gelsin koçum benim beeeee 
+        hub = center_nodes[i]
+        print("hub -> ",hub)
+        center_nodes[i] = np.random.choice(*cluster[i])
+        print("center nodes at ",i," -> ",center_nodes[i])
+        index_of_cluster = np.where(cluster[i] == center_nodes[i])
+        cluster[i][0][index_of_cluster[1]] = hub
+    
+    
+    
+RelocateHub()  
+
+def printGraph(__data,__centers,__labels):  
+    initialSolution_figure = plt.figure()
+    initialSolution_canvas = FigureCanvas(initialSolution_figure)
+            
+    # self.initialSolution_figure.clear()
+    ploting = initialSolution_figure.add_subplot(111)
+    
+    if len(__data):
+        ploting.scatter(__data[:,0], __data[:,1],color="k",s=20) 
+        # for i in range(len(self.__data)):
+        #     plt.annotate(str(i),(self.__data[:,0], self.__data[:,1]))
+        # print("data")
+    
+    if len(__labels):
+        ploting.scatter(__data[:,0], __data[:,1],c = __labels,s = 20,cmap = 'rainbow')
+        # for i in range(len(self.__data)):
+        #     plt.annotate(str(i),(self.__data[:,0], self.__data[:,1]))
+        # print("lbl")
+    if len(__centers):
+        ploting.scatter(np.array(__centers)[:, 0],np.array(__centers)[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
+        # print("center")
+
+printGraph(X,centers,labels)    
+    
+    
+    
