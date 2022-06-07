@@ -18,6 +18,8 @@ from dataOperations import dbScanCalculator
 from dataOperations import hcCalculator
 from dataOperations import scCalculator
 
+from Algorithms import Algorithms
+
 from PyQt5 import QtWidgets,QtCore
 from PyQt5.QtWidgets import QFileDialog,QUndoStack,QUndoView
 from PyQt5.QtCore import QTimer
@@ -93,6 +95,15 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.clusteringButton_DBSCAN.clicked.connect(self.dbScan)
         self.clusteringButton_spectralClustering.clicked.connect(self.spectralClustering)
         
+        #heuristics buttons
+        self.heuristicsButton_hillClimbing.clicked.connect(self.hillClimbing)
+        self.heuristicsButton_simulatedAnneling.clicked.connect(self.simulatedAnneling)
+    def hillClimbing(self):
+        algorithm = Algorithms()
+        self.intialSolutionStackControl("Hill Climbing")
+        
+    def simulatedAnneling(self):
+        print("hello")
     def holdButton(self):
         self.timer = QTimer()
         self.heldTime = 0
@@ -123,7 +134,13 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
     def resizeEvent(self, event):
         self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
         QtWidgets.QMainWindow.resizeEvent(self, event)
-        
+    
+    def enableAfterClustering(self):
+        self.heuristicsAction_hillClimbing.setEnabled(True)
+        self.heuristicsAction_simulatedAnneling.setEnabled(True)
+        self.heuristicsButton_hillClimbing.setEnabled(True)
+        self.heuristicsButton_simulatedAnneling.setEnabled(True)                                                   
+        self.heuristics_hLayout.setEnabled(True)
     def enableAfterDataObtained(self):
         # file actions
         self.fileAction_saveFinalSolution.setEnabled(True)
@@ -189,33 +206,33 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.kmWindow = KMeansCalculator()
         self.kmWindow.show()
         self.kmWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="K-Means")})
-        
+        self.enableAfterClustering()
     def affinityPropagation(self):
         # self.stack.push(self.affinityPropagation)
         self.apWindow = AffinityPropagationCalculator()
         self.apWindow.show()
         self.apWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Affinity Propagation")})
-        
+        self.enableAfterClustering()
     def meanShift(self):
         self.msWindow = meanShiftCalculator()
         self.msWindow.show()
         self.msWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Mean-Shift")})
-        
+        self.enableAfterClustering()
     def dbScan(self):
         self.dbScanWindow = dbScanCalculator()
         self.dbScanWindow.show()
         self.dbScanWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="DBSCAN")})
-        
+        self.enableAfterClustering()
     def hClustering(self):
         self.hcWindow = hcCalculator()
         self.hcWindow.show()
         self.hcWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Hierarchical Clustering")})
-        
+        self.enableAfterClustering()
     def spectralClustering(self):
         self.scWindow = scCalculator()
         self.scWindow.show()
         self.scWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Spectral Clustering")})
-        
+        self.enableAfterClustering()
     def enableInitialUndo(self,selection):
          self.initialButton_undo.setEnabled(selection)
          self.editAction_undoInitialSolution.setEnabled(selection)

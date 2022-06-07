@@ -35,27 +35,29 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
          self.results_textBrowser.clear()
          self.__labels=self.DataHolder.getLabels()         
          # print(self.__labels)
-         self.__centers=self.DataHolder.getCenters()
-         self.results_textBrowser.append("Clustering Labels:")
-         self.results_textBrowser.append(str(self.__labels))
-         self.results_textBrowser.append("\n")
-         clusters = self.DataHolder.getClusterIndices()
-         for i in range(0,len(clusters)):
-             self.results_textBrowser.append("Cluster "+str(i)+"-->"+str(*clusters[i]))
-         center_nodes = self.DataHolder.getCenterNodes()
-         self.results_textBrowser.append("\nCluster center nodes -->"+str(center_nodes))
-         farhest_distances = self.DataHolder.getFarhestHubDistances()
-         self.results_textBrowser.append("\n****Farhest hub distances****\n"+str(farhest_distances))
-         pair_combinations = self.DataHolder.getPairCombinations()
-         self.results_textBrowser.append("\nAll possible pairs: "+str(pair_combinations))
-         pair_objectives = self.DataHolder.getPairObjectives()
-         self.results_textBrowser.append("\n****Pair objectives****\n"+str(pair_objectives))
-         objective_result = self.DataHolder.getObjectiveResult()
-         self.results_textBrowser.append("\nObjective function -->"+str(objective_result))
+         # self.__centers=self.DataHolder.getCenters()
+         # self.results_textBrowser.append("Clustering Labels:")
+         # self.results_textBrowser.append(str(self.__labels))
+         # self.results_textBrowser.append("\n")
+         # clusters = self.DataHolder.getClusterIndices()
+         # for i in range(0,len(clusters)):
+         #     self.results_textBrowser.append("Cluster "+str(i)+"-->"+str(*clusters[i]))
+         # center_nodes = self.DataHolder.getCenterNodes()
+         # self.results_textBrowser.append("\nCluster center nodes -->"+str(center_nodes))
+         # farhest_distances = self.DataHolder.getFarhestHubDistances()
+         # self.results_textBrowser.append("\n****Farhest hub distances****\n"+str(farhest_distances))
+         # pair_combinations = self.DataHolder.getPairCombinations()
+         # self.results_textBrowser.append("\nAll possible pairs: "+str(pair_combinations))
+         # pair_objectives = self.DataHolder.getPairObjectives()
+         # self.results_textBrowser.append("\n****Pair objectives****\n"+str(pair_objectives))
+         # objective_result = self.DataHolder.getObjectiveResult()
+         # self.results_textBrowser.append("\nObjective function -->"+str(objective_result))
          
     def printGraph(self):
         
         self.__data = self.DataHolder.getInitialData()
+        self.__labels=self.DataHolder.getLabels()  
+        self.__centers = self.DataHolder.getCenters()
         self.initialSolution_figure = plt.figure()
         self.initialSolution_canvas = FigureCanvas(self.initialSolution_figure)  
         ploting = self.initialSolution_figure.add_subplot(111)
@@ -75,12 +77,12 @@ class InitialSolutionGraph(QUndoCommand):  # this is gonna a lot  tougher
             
     def undo(self): 
         # self.communicator.undoEvent.emit()
-        self.printResults()
+        # self.printResults()
         self.printGraph()
         
     def redo(self):
         # self.communicator.redoEvent.emit()
-        self.printResults()
+        # self.printResults()
         self.printGraph()
 
 
