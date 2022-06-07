@@ -25,7 +25,10 @@ class DataHolder(metaclass=Singleton):
         self.__pair_objectives = []
         self.__objective_result = 0
         
-    
+    def setNumberOfClusters(self,n_clusters):
+        self.__n_clusters = n_clusters
+    def getNumberOfClusters(self):
+        return self.__n_clusters
     def setPairObjectives(self,pair_objectives):
         self.__pair_objectives = pair_objectives
     def getPairObjectives(self):
@@ -50,6 +53,11 @@ class DataHolder(metaclass=Singleton):
         self.__center_nodes = center_nodes
     def getCenterNodes(self):
         return self.__center_nodes
+    
+    def setDistanceMatrix(self,dist):
+        self.__dist = dist
+    def getDistanceMatrix(self):
+        return self.__dist
     
     def setInitialData(self,initialData):
         self.__initialData = initialData

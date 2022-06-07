@@ -35,10 +35,13 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.setupUi(self)
         
         # self.createUndoRedo()
-        self.initialUndoStack = QUndoStack()
+        self.initialUndoStack = QUndoStack(self)
         # self.initialUndoStack.setClean()
         # self.initialUndoStack.cleanIndex()
         # self.initialUndoStack.clear()
+        self.initialButton_undo.setEnabled(False)
+        self.initialButton_redo.setEnabled(False)
+        
         self.connectSignalSlots()        
         self.DataHolder = DataHolder()
         self.specialSignalSlots() 
@@ -64,21 +67,17 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
                                                                         self.initialUndoStack.clear()})
         self.editAction_undoInitialSolution.triggered.connect(self.initialUndoStack.undo)
         self.editAction_redoInitialSolution.triggered.connect(self.initialUndoStack.redo)
-        # self.initialUndoStack.createUndoAction(self.editAction_undoInitialSolution,"self.printInitialSolution")
-        # self.initialUndoStack.createRedoAction(self.editAction_redoInitialSolution,"self.printInitialSolution")
+
         #  edit buttons
         self.initialButton_clearInitialSolution.clicked.connect(lambda: {self.initialSolution_scene.clear(),
                                                                         self.initialUndoStack.clear()})
-        # self.initialUndoStack.createUndoAction(self.initialButton_undo,"self.printInitialSolution")
-        # self.initialUndoStack.createRedoAction(self.initialButton_redo,"self.printInitialSolution")
+
         self.initialButton_undo.pressed.connect(lambda: {self.initialUndoStack.undo(),self.holdButton()})
         self.initialButton_undo.released.connect(lambda : self.mouseReleasedEvent())
-        # self.initialButton_undo.released.connect(self.releaseEvent)
-        self.initialButton_redo.clicked.connect(self.initialUndoStack.redo)
-        # self.initialUndoStack.
 
-        # self.initial
-        
+        self.initialButton_redo.clicked.connect(self.initialUndoStack.redo)
+
+    
         # clustering actions
         self.clusteringAction_KMeans.triggered.connect(self.kMeans)
         self.clusteringAction_affinityPropagation.triggered.connect(self.affinityPropagation)
@@ -101,12 +100,11 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.timer.timeout.connect(self.timePassedEvent)
         
     def mouseReleasedEvent(self):
-        print("release")
+
         self.timer.stop()
         
     def timePassedEvent(self):
         self.heldTime +=1
-        print(self.heldTime)
         if self.heldTime >= 8:
             self.showUndoView()
             self.timer.stop()
@@ -118,7 +116,7 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         
     def specialSignalSlots(self):
         self.communicator = SignalSlotCommunicationManager()
-        self.communicator.fileOpened.connect(lambda: {self.printInitialSolution(description="Data")})
+        self.communicator.fileOpened.connect(lambda: {self.intialSolutionStackControl(description="Data")})
         self.initialUndoStack.canUndoChanged.connect(lambda: self.enableInitialUndo(self.initialUndoStack.canUndo()))
         self.initialUndoStack.canRedoChanged.connect(lambda: self.enableInitialRedo(self.initialUndoStack.canRedo()))
         
@@ -127,7 +125,6 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         QtWidgets.QMainWindow.resizeEvent(self, event)
         
     def enableAfterDataObtained(self):
-        # print("enableAfterDataObtained")
         # file actions
         self.fileAction_saveFinalSolution.setEnabled(True)
         # file buttons
@@ -158,7 +155,6 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         data = np.array(df)
         self.DataHolder.setInitialData(data)
         self.communicator.fileOpened.emit()
-        # self.printInitialSolution()
         self.enableAfterDataObtained()
 
     def saveToFile(self,option,solution):  
@@ -182,102 +178,43 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
 
             
         
-    def printInitialSolution(self,description="", labels=[],centers=[]): 
-        data = self.DataHolder.getInitialData()
+    def intialSolutionStackControl(self,description=""): 
         self.initialUndoStack.beginMacro(description)
-        self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView,self.initialSolution_scene,"print data",data,labels,centers))
+        pushCommand = InitialSolutionGraph(self.results_textBrowser,self.initialSolution_graphicsView)
+        self.initialUndoStack.push(pushCommand)
         self.initialUndoStack.endMacro()
-        
-        # # self.stack.push(self.printInitialSolution)                       
-        
-        # # self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
-        # self.initialSolution_figure = plt.figure(dpi=100)
-        # self.initialSolution_canvas = FigureCanvas(self.initialSolution_figure)
-        # self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
-                
-        # self.initialSolution_figure.clear()
-        # ploting = self.initialSolution_figure.add_subplot(111)
-        # ploting.scatter(data[:,0], data[:,1],color="k",s=50) 
-        # print("lbl:",labels,"centers:",centers)
-
-        # if len(labels):
-        #     ploting.scatter(data[:,0], data[:,1],c = labels,s = 50,cmap = 'rainbow')
-        #     # print("lbl")
-        # if len(centers):
-        #     ploting.scatter(centers[:, 0],centers[:, 1],c = "red",s = 50, marker="x",alpha = 1,linewidth=1)
-        #     # print("center")
-            
-        
-       
-        # # self.initialSolution_scene.update(self.initialSolution_canvas)
-        # self.initialSolution_scene.addWidget(self.initialSolution_canvas)
-        # # cmd = self.undoRedo.createUndoAction(self.initialSolution_scene,"undo")
-        # # print(self.undoRedo.canUndo())
-        
-        # # print(self.undoRedo.command(1))
-        
-        # self.initialSolution_graphicsView.setScene(self.initialSolution_scene)   
-        # self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
         
     def kMeans(self):
         # self.stack.push(self.kMeans)
         self.kmWindow = KMeansCalculator()
         self.kmWindow.show()
-        self.kmWindow.OKButton.clicked.connect(lambda:{self.initialSolutionResults(description="K-Means")})
+        self.kmWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="K-Means")})
         
     def affinityPropagation(self):
         # self.stack.push(self.affinityPropagation)
         self.apWindow = AffinityPropagationCalculator()
         self.apWindow.show()
-        self.apWindow.OKButton.clicked.connect(lambda:{self.initialSolutionResults(description="Affinity Propagation")})
+        self.apWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Affinity Propagation")})
         
     def meanShift(self):
-        # self.stack.push(self.meanShift)
         self.msWindow = meanShiftCalculator()
         self.msWindow.show()
-        self.msWindow.OKButton.clicked.connect(lambda:{self.initialSolutionResults(description="Mean-Shift")})
+        self.msWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Mean-Shift")})
         
     def dbScan(self):
-        # self.stack.push(self.dbScan)
         self.dbScanWindow = dbScanCalculator()
         self.dbScanWindow.show()
-        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.initialSolutionResults(description="DBSCAN")})
+        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="DBSCAN")})
         
     def hClustering(self):
-        # self.stack.push(self.hClustering)
         self.hcWindow = hcCalculator()
         self.hcWindow.show()
-        self.hcWindow.OKButton.clicked.connect(lambda:{self.initialSolutionResults(description="Hierarchical Clustering")})
+        self.hcWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Hierarchical Clustering")})
         
     def spectralClustering(self):
-        # self.stack.push(self.spectralClustering)
         self.scWindow = scCalculator()
         self.scWindow.show()
-        self.scWindow.OKButton.clicked.connect(lambda:{self.initialSolutionResults(description="Spectral Clustering")})
-        
-    
-    def initialSolutionResults(self,description):
-        self.results_textBrowser.clear()
-        labels=self.DataHolder.getLabels()
-        print(labels)
-        centers=self.DataHolder.getCenters()
-        self.printInitialSolution(description,labels,centers)
-        self.results_textBrowser.append("Clustering Labels:")
-        self.results_textBrowser.append(str(labels))
-        self.results_textBrowser.append("\n")
-        clusters = self.DataHolder.getClusterIndices()
-        for i in range(0,len(clusters)):
-            self.results_textBrowser.append("Cluster "+str(i)+"-->"+str(*clusters[i]))
-        center_nodes = self.DataHolder.getCenterNodes()
-        self.results_textBrowser.append("\nCluster center nodes -->"+str(center_nodes))
-        farhest_distances = self.DataHolder.getFarhestHubDistances()
-        self.results_textBrowser.append("\n****Farhest hub distances****\n"+str(farhest_distances))
-        pair_combinations = self.DataHolder.getPairCombinations()
-        self.results_textBrowser.append("\nAll possible pairs: "+str(pair_combinations))
-        pair_objectives = self.DataHolder.getPairObjectives()
-        self.results_textBrowser.append("\n****Pair objectives****\n"+str(pair_objectives))
-        objective_result = self.DataHolder.getObjectiveResult()
-        self.results_textBrowser.append("\nObjective function -->"+str(objective_result))
+        self.scWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Spectral Clustering")})
         
     def enableInitialUndo(self,selection):
          self.initialButton_undo.setEnabled(selection)
