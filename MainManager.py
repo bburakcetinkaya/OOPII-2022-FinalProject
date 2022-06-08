@@ -6,7 +6,7 @@ Created on Thu May 26 14:56:23 2022
          151220152110
 """
 
-from UndoRedo import InitialSolutionGraph
+from PrintManager import Solution
 from MainWindow import Ui_MainWindow
 
 from DataHolder import DataHolder
@@ -18,7 +18,7 @@ from dataOperations import dbScanCalculator
 from dataOperations import hcCalculator
 from dataOperations import scCalculator
 
-from Algorithms import Algorithms
+from dataOperations import SimulatedAnneling,HillClimbing
 
 from PyQt5 import QtWidgets,QtCore
 from PyQt5.QtWidgets import QFileDialog,QUndoStack,QUndoView
@@ -37,17 +37,20 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.setupUi(self)
         
         # self.createUndoRedo()
-        self.initialUndoStack = QUndoStack(self)
-        # self.initialUndoStack.setClean()
-        # self.initialUndoStack.cleanIndex()
-        # self.initialUndoStack.clear()
+        self.initialUndoStack = QUndoStack()
+        self.finalUndoStack = QUndoStack()
+        self.initialUndoStack.clear()
+        self.finalUndoStack.clear()
         self.initialButton_undo.setEnabled(False)
         self.initialButton_redo.setEnabled(False)
         
+        self.communicator = SignalSlotCommunicationManager()
+        self.finalSolution_scene = QtWidgets.QGraphicsScene() 
+        self.initialSolution_scene = QtWidgets.QGraphicsScene() 
         self.connectSignalSlots()        
         self.DataHolder = DataHolder()
-        self.specialSignalSlots() 
-        self.initialSolution_scene = QtWidgets.QGraphicsScene(self) 
+        self.specialSignalSlots()
+        
         # self.undoRedoFlag = True
         # self.initialUndoStack.push(InitialSolutionGraph(self.initialSolution_graphicsView, self.initialSolution_scene))
     
@@ -69,10 +72,14 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
                                                                         self.initialUndoStack.clear()})
         self.editAction_undoInitialSolution.triggered.connect(self.initialUndoStack.undo)
         self.editAction_redoInitialSolution.triggered.connect(self.initialUndoStack.redo)
+        self.editAction_clearFinalSolution.triggered.connect(lambda: {self.initialSolution_scene.clear(),
+                                                                      self.initialUndoStack.clear()})
 
         #  edit buttons
         self.initialButton_clearInitialSolution.clicked.connect(lambda: {self.initialSolution_scene.clear(),
                                                                         self.initialUndoStack.clear()})
+        self.finalButton_clearFinalSolution.clicked.connect(lambda: {self.finalSolution_scene.clear(),         
+                                                                     self.finalUndoStack.clear()})
 
         self.initialButton_undo.pressed.connect(lambda: {self.initialUndoStack.undo(),self.holdButton()})
         self.initialButton_undo.released.connect(lambda : self.mouseReleasedEvent())
@@ -98,12 +105,20 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         #heuristics buttons
         self.heuristicsButton_hillClimbing.clicked.connect(self.hillClimbing)
         self.heuristicsButton_simulatedAnneling.clicked.connect(self.simulatedAnneling)
+        
+        #heuristics actions
+        self.heuristicsAction_hillClimbing.triggered.connect(self.hillClimbing)
+        self.heuristicsAction_simulatedAnneling.triggered.connect(self.simulatedAnneling)
     def hillClimbing(self):
-        algorithm = Algorithms()
-        self.intialSolutionStackControl("Hill Climbing")
+        HillClimbing(100000)
+        self.SolutionStackControl(selection="FINAL",description="Hill Climbing")
+        self.enableAfterHeuristics()
         
     def simulatedAnneling(self):
-        print("hello")
+        SimulatedAnneling(100000)
+        self.SolutionStackControl(selection="FINAL",description="Simulated Anneling")
+        self.enableAfterHeuristics()
+        
     def holdButton(self):
         self.timer = QTimer()
         self.heldTime = 0
@@ -125,16 +140,30 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.undoView.setStack(self.initialUndoStack)
         self.undoView.show()
         
-    def specialSignalSlots(self):
-        self.communicator = SignalSlotCommunicationManager()
-        self.communicator.fileOpened.connect(lambda: {self.intialSolutionStackControl(description="Data")})
+    def specialSignalSlots(self):        
+        self.communicator.fileOpened.connect(lambda: {self.SolutionStackControl(selection = "DATA" , description="Data read")})
         self.initialUndoStack.canUndoChanged.connect(lambda: self.enableInitialUndo(self.initialUndoStack.canUndo()))
         self.initialUndoStack.canRedoChanged.connect(lambda: self.enableInitialRedo(self.initialUndoStack.canRedo()))
+        self.finalUndoStack.canUndoChanged.connect(lambda: self.enableFinalUndo(self.finalUndoStack.canUndo()))
+        self.finalUndoStack.canRedoChanged.connect(lambda: self.enableFinalRedo(self.finalUndoStack.canRedo()))
         
     def resizeEvent(self, event):
         self.initialSolution_graphicsView.fitInView(self.initialSolution_scene.sceneRect())
+        self.finalSolution_graphicsView.fitInView(self.finalSolution_scene.sceneRect())
         QtWidgets.QMainWindow.resizeEvent(self, event)
     
+    def enableAfterHeuristics(self):
+        self.finalSolution_groupBox.setEnabled(True)
+        self.finalSolution_hLayout.setEnabled(True)
+        self.finalButton_clearFinalSolution.setEnabled(True)
+        self.finalButton_exportAsFinalSolution.setEnabled(True)
+        self.finalButton_redo.setEnabled(True)
+        self.finalButton_undo.setEnabled(True)
+        self.editAction_redoFinalSolution.setEnabled(True)
+        self.editAction_clearFinalSolution.setEnabled(True)
+        self.editAction_undoFinalSolution.setEnabled(True)
+        self.fileAction_exportAsFinalSolution.setEnabled(True)
+        
     def enableAfterClustering(self):
         self.heuristicsAction_hillClimbing.setEnabled(True)
         self.heuristicsAction_simulatedAnneling.setEnabled(True)
@@ -165,7 +194,8 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
         self.clustering_hLayout.setEnabled(True)
         
     def openFile(self):
-
+        
+        self.DataHolder.setInitialData(np.array(0))
         self.filePath = QFileDialog.getOpenFileName(filter = "Data files (*.txt)")[0]
         df = pd.read_csv(self.filePath,sep=" ",header=None)
         df.columns = ["X","Y"]
@@ -195,43 +225,50 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
 
             
         
-    def intialSolutionStackControl(self,description=""): 
-        self.initialUndoStack.beginMacro(description)
-        pushCommand = InitialSolutionGraph(self.results_textBrowser,self.initialSolution_graphicsView)
-        self.initialUndoStack.push(pushCommand)
-        self.initialUndoStack.endMacro()
+    def SolutionStackControl(self,selection,description=""): 
+        if selection == "INITIAL" or selection == "DATA":
+            self.initialUndoStack.beginMacro(description)
+            pushCommand = Solution(self.infoPanel_textEdit,self.results_textBrowser,self.initialSolution_graphicsView,self.initialSolution_scene,selection)
+            self.initialUndoStack.push(pushCommand)
+            self.initialUndoStack.endMacro()
+        if selection == "FINAL":
+            self.finalUndoStack.beginMacro(description)
+            pushCommand = Solution(self.infoPanel_textEdit,self.results_textBrowser,self.finalSolution_graphicsView,self.finalSolution_scene,selection)
+            self.finalUndoStack.push(pushCommand)
+            self.finalUndoStack.endMacro()
         
+            
     def kMeans(self):
         # self.stack.push(self.kMeans)
         self.kmWindow = KMeansCalculator()
         self.kmWindow.show()
-        self.kmWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="K-Means")})
+        self.kmWindow.OKButton.clicked.connect(lambda:{self.SolutionStackControl(selection="INITIAL",description="K-Means")})
         self.enableAfterClustering()
     def affinityPropagation(self):
         # self.stack.push(self.affinityPropagation)
         self.apWindow = AffinityPropagationCalculator()
         self.apWindow.show()
-        self.apWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Affinity Propagation")})
+        self.apWindow.OKButton.clicked.connect(lambda:{self.SolutionStackControl(selection="INITIAL",description="Affinity Propagation")})
         self.enableAfterClustering()
     def meanShift(self):
         self.msWindow = meanShiftCalculator()
         self.msWindow.show()
-        self.msWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Mean-Shift")})
+        self.msWindow.OKButton.clicked.connect(lambda:{self.SolutionStackControl(selection="INITIAL",description="Mean-Shift")})
         self.enableAfterClustering()
     def dbScan(self):
         self.dbScanWindow = dbScanCalculator()
         self.dbScanWindow.show()
-        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="DBSCAN")})
+        self.dbScanWindow.OKButton.clicked.connect(lambda:{self.SolutionStackControl(dselection="INITIAL",escription="DBSCAN")})
         self.enableAfterClustering()
     def hClustering(self):
         self.hcWindow = hcCalculator()
         self.hcWindow.show()
-        self.hcWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Hierarchical Clustering")})
+        self.hcWindow.OKButton.clicked.connect(lambda:{self.SolutionStackControl(selection="INITIAL",description="Hierarchical Clustering")})
         self.enableAfterClustering()
     def spectralClustering(self):
         self.scWindow = scCalculator()
         self.scWindow.show()
-        self.scWindow.OKButton.clicked.connect(lambda:{self.intialSolutionStackControl(description="Spectral Clustering")})
+        self.scWindow.OKButton.clicked.connect(lambda:{self.SolutionStackControl(selection="INITIAL",description="Spectral Clustering")})
         self.enableAfterClustering()
     def enableInitialUndo(self,selection):
          self.initialButton_undo.setEnabled(selection)
@@ -240,8 +277,14 @@ class MainManager(QtWidgets.QMainWindow,Ui_MainWindow):
     def enableInitialRedo(self,selection):        
         self.initialButton_redo.setEnabled(selection)        
         self.editAction_redoInitialSolution.setEnabled(selection)
-
         
+    def enableFinalUndo(self,selection):
+         self.finalButton_undo.setEnabled(selection)
+         self.editAction_undoFinalSolution.setEnabled(selection)
+         
+    def enableFinalRedo(self,selection):       
+        self.finalButton_redo.setEnabled(selection)
+        self.editAction_redoFinalSolution.setEnabled(selection)
 
         # self.initialButton_exportAsInitialSolution.setText(_translate("MainWindow", "..."))
         # self.toolButton_14.setText(_translate("MainWindow", "..."))

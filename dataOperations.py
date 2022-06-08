@@ -2,10 +2,11 @@
 """
 Created on Thu May 26 20:19:55 2022
 
-@author: piton
+@author: Burak Çetinkaya
+        151220152110
 """
 from DataHolder import DataHolder
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets,QtCore
 from KMeansWindow import Ui_kMeansWindow
 from AffinityPropagationWindow import Ui_apWindow
 from DBSCANWindow import Ui_dbScanWindow
@@ -20,19 +21,115 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 
-# from sklearn.cluster import DBSCAN
-from sklearn import metrics
-from sklearn.datasets import make_blobs
-from sklearn.preprocessing import StandardScaler
 
 from scipy.spatial import distance
 from itertools import combinations
 
 import numpy as np
-
+import time
 
 from abc import ABCMeta, abstractmethod
+DH = DataHolder()
+def calculateClusters():
+    
+    labels = DH.getLabels()
+    n_clusters = len(np.unique(labels))
+    DH.setNumberOfClusters(n_clusters)
+    
+    clusterList = []
+    for i in range(0,(n_clusters)):
+        clusterList.append(list(np.where(labels==i))[0])
+    #print("clusterList ", clusterList)
+    DH.setClusterNodes(clusterList)
+def calculateCenters():    
+ 
+    n_clusters = DH.getNumberOfClusters()
+    data = DH.getInitialData()
+    centers = []
+    clusterList = DH.getClusterNodes()
+    for i in range(0,n_clusters):
+        x = np.mean(data[clusterList[i],0])
+        y = np.mean(data[clusterList[i],1])
+        centers.append([x,y])
+    #print("centers: ", centers)  
+    DH.setCenters(centers)
+def calculateCenterNodes():
 
+    center_nodes = []  
+    cluster_nodes = []
+    data = DH.getInitialData()
+    centers = DH.getCenters()
+    n_clusters = DH.getNumberOfClusters()
+    clusterList = DH.getClusterNodes()
+        
+    dist = distance.cdist(centers, data, metric="euclidean" )
+    DH.setDistanceMatrix(dist)
+    for i in range(0,n_clusters):
+        center_nodes.append(np.where(dist[i] == min(dist[i]))[0])
+    # #print("center nodes = " , center_nodes)   
+    for i in range(0,n_clusters):  
+        c = np.array(center_nodes[i])
+        d = np.array(clusterList[i])    
+        cluster_nodes.append(d[d != c])
+    #print("cluster_nodes: ", cluster_nodes)  
+    #print("center_nodes: ", center_nodes)  
+    DH.setClusterNodes(cluster_nodes)
+    DH.setCenterNodes(center_nodes)
+
+def calculateFarhestDistance():
+
+    data = DH.getInitialData()
+    center_nodes = DH.getCenterNodes()
+    n_clusters = DH.getNumberOfClusters()
+    farhest_dist = {}
+    center_nodes_list = []
+    dist_to_center_node = []
+    clusterList = DH.getClusterNodes()
+    for i in range(0,n_clusters):
+        center_nodes_list.append(int(center_nodes[i]))
+    for i in range(0,n_clusters):  
+        a = data[center_nodes_list[i]]
+        a = a.reshape(1,2)
+        b = data[clusterList[i]]
+        dist_to_center_node.append(distance.cdist( a, b, metric="euclidean" ))
+
+    farhest_dist = dict.fromkeys(center_nodes_list,0)
+    for i in range(0,n_clusters):
+        farhest_dist[center_nodes_list[i]] = np.max(dist_to_center_node[i])            
+    #print("farhest_dist: ", farhest_dist)
+    DH.setFarhestHubDistances(farhest_dist)
+def calculatePairCombinations(): 
+
+    center_nodes = DH.getCenterNodes()
+    pair_combinations = combinations(list(center_nodes),2)
+    pair_combinations = list(pair_combinations)
+    #print("pair_combinations: ", pair_combinations)
+    DH.setPairCombinations(pair_combinations)
+def calculatePairObjectives():
+
+    pair_combinations = DH.getPairCombinations()
+    data = DH.getInitialData()
+    farhest_dist = DH.getFarhestHubDistances()
+
+    pair_objectives = np.zeros(len(pair_combinations))
+    for i in range(0,len(pair_combinations)):
+        cluster_i = int(pair_combinations[i][0])
+        cluster_j = int(pair_combinations[i][1])
+        # #print("farhest_dist = " ,farhest_dist)
+        dihi = farhest_dist[cluster_i]        
+        p1 = data[cluster_i]
+        p1 = p1.reshape(1,2)
+        p2 = data[cluster_j]
+        p2 = p2.reshape(1,2)
+        dhihj = distance.cdist(p1 ,p2,metric="euclidean")
+        djhj = farhest_dist[cluster_j]
+        objij = dihi+2*dhihj+djhj
+        pair_objectives[i] = (objij)
+    #print("pair_objectives: ", pair_objectives)
+    DH.setPairObjectives(pair_objectives)
+    objective_result = max(pair_objectives)
+    #print("objective_result: ", objective_result)
+    DH.setObjectiveResult(objective_result)
 class AbstractCalculator(QtWidgets.QMainWindow):
     __metacalss = ABCMeta
     @abstractmethod
@@ -47,14 +144,234 @@ class AbstractCalculator(QtWidgets.QMainWindow):
     def resetParameters(self):
         # resets the parameters in the ui to their defaults
         pass
+class SimulatedAnneling(object):
+    def __init__(self,n_iterations):
+        self.__n_iterations = n_iterations
+        self.DH = DataHolder()
+        self.calculate()
+    def calculate(self): 
+        self.progress = QtWidgets.QProgressDialog()
+        self.progress.setMinimum(0)
+        self.progress.setMaximum(self.__n_iterations)
+        self.progress.setLabelText("Processing")
+        self.progress.resize(400,70)
+        self.progress.findChildren(QtWidgets.QPushButton)[0].hide()
+        self.progress.setWindowFlags(QtCore.Qt.CustomizeWindowHint)
+        self.progress.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.progress.setFixedSize(self.progress.geometry().width(),self.progress.geometry().height())
+        self.progress.show();
+        best_solution = self.DH.getObjectiveResult()  
+        start = time.time()
+        for i in range (0,self.__n_iterations):
+            self.progress.setValue(i);
+            calculateCenters()
+            calculateFarhestDistance()
+            calculatePairCombinations()
+            calculatePairObjectives()
+            solution = self.DH.getObjectiveResult()
+            if solution < 0.97*best_solution:
+                best_solution = solution 
+                self.DH.setResultIterationsNumber(i)
+                # print(555)
+                self.setBestSolutionResults()
+            self.operate()
+        self.DH.setTotalIterations(self.__n_iterations)
+        stop = time.time()
+        duration = stop-start
+        self.DH.setExecutionTime(duration)
+        
+        self.progress.close()
+        self.progress.deleteLater()
+    
+    def operate(self):
+        select = int(np.random.randint(0,3,1))
+        if select == 0:
+            print(0)
+            self.RelocateHub()
+        if select == 1:
+            print(1)
+            self.ReallocateNode()
+        if select == 2:
+            print(2)
+            self.SwapNodes()
+            
+    def RelocateHub(self):       
+        n_clusters = self.DH.getNumberOfClusters()
+        cluster = self.DH.getClusterNodes()
+        ##print("cluster before: ", cluster)
+        center_nodes = self.DH.getCenterNodes()
+        cluster_nodes = self.DH.getClusterNodes()
+        randIndex = int(np.random.randint(0,n_clusters,1))
 
+        cluster = cluster_nodes[randIndex]
+        nodeIndex = int(np.random.randint(0,len(cluster),1))
+        hub = int(center_nodes[randIndex])
+        center_nodes[randIndex] = np.array(cluster[nodeIndex])
+        cluster[nodeIndex] = np.array(hub)
+        cluster_nodes[randIndex] = cluster
+        self.DH.setClusterNodes(cluster_nodes)
+        self.DH.setCenterNodes(center_nodes)
+        ##print("cluster after: ", cluster_nodes)
+    def SwapNodes(self):       
+        cluster = self.DH.getClusterNodes()  
+        ##print("before swap:",self.DH.getClusterNodes())
+        n_clusters = self.DH.getNumberOfClusters()
+        randHub1 = int(np.random.randint(0,n_clusters,1))
+        randHub2 = int(np.random.randint(0,n_clusters,1))
+        while randHub1 == randHub2:
+            randHub1 = int(np.random.randint(0,n_clusters,1))
+        
+        a = cluster[randHub1]
+        b = cluster[randHub2]
+        randIndex1 = int(np.random.randint(0,len(a),1))
+        randIndex2 = int(np.random.randint(0,len(b),1))
+        a[randIndex1],b[randIndex2] = b[randIndex2],a[randIndex1]
+        self.DH.setClusterNodes(cluster)  
+        ##print("after swap:",self.DH.getClusterNodes())
+
+    def ReallocateNode(self):   
+        clusterList = self.DH.getClusterNodes() 
+        n_clusters = self.DH.getNumberOfClusters()
+        
+        randIndex1,randIndex2 = np.random.randint(0,n_clusters,2)
+        while randIndex1 == randIndex2:
+            randIndex1,randIndex2 = np.random.randint(0,n_clusters,2)
+        clusterList1 = list(clusterList[randIndex1])
+        clusterList2 = list(clusterList[randIndex2])
+        if not len(clusterList1) <=1:
+            index = int(np.random.randint(0,len(clusterList1),1))
+            temp = clusterList1.pop(int(index))
+            clusterList2.append(temp)
+            clusterList[randIndex1] = np.array(clusterList1)
+            clusterList[randIndex2] = np.array(clusterList2)
+        self.DH.setClusterNodes(clusterList)  
+        
+    def setBestSolutionResults(self):
+        self.DH.setBestCenterNodes(self.DH.getCenterNodes())        
+        self.DH.setBestCenters(self.DH.getCenters())
+        self.DH.setBestClusterNodes(self.DH.getClusterNodes())
+        self.DH.setBestDistanceMatrix(self.DH.getDistanceMatrix())
+        self.DH.setBestFarhestHubDistances(self.DH.getFarhestHubDistances())
+        self.DH.setBestPairCombinations(self.DH.getPairCombinations())
+        self.DH.setBestPairObjectives(self.DH.getPairObjectives())
+        self.DH.setBestObjectiveResult(self.DH.getObjectiveResult())
+
+class HillClimbing(object):
+    def __init__(self,n_iterations):
+        self.__n_iterations = n_iterations
+        self.DH = DataHolder()
+        self.calculate()
+    def calculate(self):   
+        self.progress = QtWidgets.QProgressDialog()
+        self.progress.setMinimum(0)
+        self.progress.setMaximum(self.__n_iterations)
+        self.progress.setLabelText("Processing")
+        self.progress.resize(400,70)
+        self.progress.findChildren(QtWidgets.QPushButton)[0].hide()
+        self.progress.setWindowFlags(QtCore.Qt.CustomizeWindowHint)
+        self.progress.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.progress.setFixedSize(self.progress.geometry().width(),self.progress.geometry().height())
+        self.progress.show();
+        best_solution = self.DH.getObjectiveResult()   
+        start = time.time()
+        for i in range (0,self.__n_iterations):
+            self.progress.setValue(i);
+            calculateCenters()
+            calculateFarhestDistance()
+            calculatePairCombinations()
+            calculatePairObjectives()
+            solution = self.DH.getObjectiveResult()
+            if solution < best_solution:
+                best_solution = solution  
+                self.DH.setResultIterationsNumber(i)
+                self.setBestSolutionResults()
+            self.operate()
+        self.DH.setTotalIterations(self.__n_iterations)
+        stop = time.time()
+        duration = stop-start
+        self.DH.setExecutionTime(duration)
+        self.progress.close()
+        self.progress.deleteLater()
+
+    def operate(self):
+        select = int(np.random.randint(0,3,1))
+        if select == 0:
+            print(0)
+            self.RelocateHub()
+        if select == 1:
+            print(1)
+            self.ReallocateNode()
+        if select == 2:
+            print(2)
+            self.SwapNodes()
+            
+    def RelocateHub(self):       
+        n_clusters = self.DH.getNumberOfClusters()
+        cluster = self.DH.getClusterNodes()
+        ##print("cluster before: ", cluster)
+        center_nodes = self.DH.getCenterNodes()
+        cluster_nodes = self.DH.getClusterNodes()
+        randIndex = int(np.random.randint(0,n_clusters,1))
+
+        cluster = cluster_nodes[randIndex]
+        nodeIndex = int(np.random.randint(0,len(cluster),1))
+        hub = int(center_nodes[randIndex])
+        center_nodes[randIndex] = np.array(cluster[nodeIndex])
+        cluster[nodeIndex] = np.array(hub)
+        cluster_nodes[randIndex] = cluster
+        self.DH.setClusterNodes(cluster_nodes)
+        self.DH.setCenterNodes(center_nodes)
+        ##print("cluster after: ", cluster_nodes)
+    def SwapNodes(self):       
+        cluster = self.DH.getClusterNodes()  
+        ##print("before swap:",self.DH.getClusterNodes())
+        n_clusters = self.DH.getNumberOfClusters()
+        randHub1 = int(np.random.randint(0,n_clusters,1))
+        randHub2 = int(np.random.randint(0,n_clusters,1))
+        while randHub1 == randHub2:
+            randHub1 = int(np.random.randint(0,n_clusters,1))
+        
+        a = cluster[randHub1]
+        b = cluster[randHub2]
+        randIndex1 = int(np.random.randint(0,len(a),1))
+        randIndex2 = int(np.random.randint(0,len(b),1))
+        a[randIndex1],b[randIndex2] = b[randIndex2],a[randIndex1]
+        self.DH.setClusterNodes(cluster)  
+        ##print("after swap:",self.DH.getClusterNodes())
+
+    def ReallocateNode(self):   
+        clusterList = self.DH.getClusterNodes() 
+        n_clusters = self.DH.getNumberOfClusters()
+        
+        randIndex1,randIndex2 = np.random.randint(0,n_clusters,2)
+        while randIndex1 == randIndex2:
+            randIndex1,randIndex2 = np.random.randint(0,n_clusters,2)
+        clusterList1 = list(clusterList[randIndex1])
+        clusterList2 = list(clusterList[randIndex2])
+        if not len(clusterList1) <=1:
+            index = int(np.random.randint(0,len(clusterList1),1))
+            temp = clusterList1.pop(int(index))
+            clusterList2.append(temp)
+            clusterList[randIndex1] = np.array(clusterList1)
+            clusterList[randIndex2] = np.array(clusterList2)
+        self.DH.setClusterNodes(clusterList)  
+        
+    def setBestSolutionResults(self):
+        self.DH.setBestCenterNodes(self.DH.getCenterNodes())        
+        self.DH.setBestCenters(self.DH.getCenters())
+        self.DH.setBestClusterNodes(self.DH.getClusterNodes())
+        self.DH.setBestDistanceMatrix(self.DH.getDistanceMatrix())
+        self.DH.setBestFarhestHubDistances(self.DH.getFarhestHubDistances())
+        self.DH.setBestPairCombinations(self.DH.getPairCombinations())
+        self.DH.setBestPairObjectives(self.DH.getPairObjectives())
+        self.DH.setBestObjectiveResult(self.DH.getObjectiveResult())
+        print(999999999999999999999999999999999999)
+        
 class KMeansCalculator(AbstractCalculator,Ui_kMeansWindow):
     def __init__(self,parent=None):
         super().__init__(parent)
        
         self.setupUi(self)
-        # self.show()
-        # print(initialData)
         self.connectSignalSlots()
         self.DataHolder = DataHolder()
         self.kMeans_centers = []
@@ -77,77 +394,16 @@ class KMeansCalculator(AbstractCalculator,Ui_kMeansWindow):
         
         km = self.kmeans.fit(data)
         labels = km.labels_
-        self.DataHolder.setLabels(km.labels_)
+        self.DataHolder.setLabels(labels)
+        # calculateParameters() 
         calculateClusters()
         calculateCenters()
         calculateCenterNodes()
         calculateFarhestDistance()
         calculatePairCombinations()
         calculatePairObjectives()
-        # self.setLabels(km.labels_)
-        
-        # cluster = [0]*self.n_clusters
-        # for i in range(0,(self.n_clusters)):
-        #     cluster[i] = (np.where(km.labels_==i))
-        # self.DataHolder.setClusterIndices(cluster)    
-        
-        # self.setCenters(km.cluster_centers_)
-        
-        # self.DataHolder.setCenters(km.cluster_centers_)
-        
-        # center_nodes = []  
-        # centers = km.cluster_centers_ 
-        # dist = distance.cdist( centers, data, metric="euclidean" )
-        # for i in range(0,self.n_clusters):
-        #     center_nodes.append(np.where(dist[i] == min(dist[i])))
-
-        # center_nodes = np.array(center_nodes)
-        # center_nodes = center_nodes.reshape(1,self.n_clusters)
-        # center_nodes = list(*center_nodes)    
-        # self.DataHolder.setCenterNodes(center_nodes)
-        
-        # farhest_dist = {}
-        # farhest_dist = dict.fromkeys(center_nodes, 0)
-        # for i in range(0,self.n_clusters):
-        #     farhest_dist[center_nodes[i]] = (max(dist[i]))            
-        # self.DataHolder.setFarhestHubDistances(farhest_dist)
-        
-        # pair_combinations = combinations(list(center_nodes),2)
-        # pair_combinations = list(pair_combinations)
-        # self.DataHolder.setPairCombinations(pair_combinations)
-        
-        # pair_objectives = np.zeros(len(pair_combinations))
-        # for i in range(0,len(pair_combinations)):
-        #     cluster_i = pair_combinations[i][0]
-        #     cluster_j = pair_combinations[i][1]
-        #     dihi = farhest_dist[cluster_i]
-            
-        #     p1 = data[cluster_i]
-        #     p1 = p1.reshape(1,2)
-        #     p2 = data[cluster_j]
-        #     p2 = p2.reshape(1,2)
-        #     dhihj = distance.cdist(p1 ,p2,metric="euclidean")
-        #     djhj = farhest_dist[cluster_j]
-        #     objij = dihi+0.75*dhihj+djhj
-        #     pair_objectives[i] = (objij)
-        
-        # self.DataHolder.setPairObjectives(pair_objectives)
-        # objective_result = max(pair_objectives)
-        # self.DataHolder.setObjectiveResult(objective_result)
-        
         self.close()
-        
 
-        
-    def setCenters(self,centers):
-        self.kMeans_centers = centers
-    def getCenters(self):
-        return self.kMeans_centers    
-    def setLabels(self,labels):
-        self.kMeans_labels = labels
-    def getLabels(self):
-        return self.kMeans_labels
-    
     def resetParameters(self):
         self.n_clusters_linedit.setText("8")
         self.init_comboBox.setCurrentIndex(0)
@@ -180,79 +436,15 @@ class AffinityPropagationCalculator(AbstractCalculator,Ui_apWindow):
                                       max_iter=self.max_iter, affinity=self.affinity)
         ap = self.ap.fit(data)
         labels = ap.labels_
-        self.DataHolder.setLabels(ap.labels_)
+        self.DataHolder.setLabels(labels)
         calculateClusters()
         calculateCenters()
         calculateCenterNodes()
         calculateFarhestDistance()
         calculatePairCombinations()
         calculatePairObjectives()
-        # self.setLabels(ap.labels_)
+        self.close()     
         
-        # self.n_clusters = len(np.unique(ap.labels_))
-        # cluster = [0]*self.n_clusters
-        # for i in range(0,(self.n_clusters)):
-        #     cluster[i] = (np.where(ap.labels_==i))
-        # self.DataHolder.setClusterIndices(cluster)
-        # # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
-        # # cluster = np.hstack((ind,labels[:,None]))
-        # # cluster = cluster[cluster[:, -1].argsort()]
-        # # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-        # self.setCenters(ap.cluster_centers_)
-        # self.DataHolder.setCenters(ap.cluster_centers_)
-        
-        # center_nodes = []  
-        # centers = ap.cluster_centers_ 
-        # dist = distance.cdist( centers, data, metric="euclidean" )
-        # for i in range(0,self.n_clusters):
-        #     center_nodes.append(np.where(dist[i] == min(dist[i])))
-
-        # center_nodes = np.array(center_nodes)
-        # center_nodes = center_nodes.reshape(1,self.n_clusters)
-        # center_nodes = list(*center_nodes)    
-        # self.DataHolder.setCenterNodes(center_nodes)
-        
-        # farhest_dist = {}
-        # farhest_dist = dict.fromkeys(center_nodes, 0)
-        # for i in range(0,self.n_clusters):
-        #     farhest_dist[center_nodes[i]] = (max(dist[i]))            
-        # self.DataHolder.setFarhestHubDistances(farhest_dist)
-        
-        # pair_combinations = combinations(list(center_nodes),2)
-        # pair_combinations = list(pair_combinations)
-        # self.DataHolder.setPairCombinations(pair_combinations)
-        
-        # pair_objectives = np.zeros(len(pair_combinations))
-        # for i in range(0,len(pair_combinations)):
-        #     cluster_i = pair_combinations[i][0]
-        #     cluster_j = pair_combinations[i][1]
-        #     dihi = farhest_dist[cluster_i]
-            
-        #     p1 = data[cluster_i]
-        #     p1 = p1.reshape(1,2)
-        #     p2 = data[cluster_j]
-        #     p2 = p2.reshape(1,2)
-        #     dhihj = distance.cdist(p1 ,p2,metric="euclidean")
-        #     djhj = farhest_dist[cluster_j]
-        #     objij = dihi+0.75*dhihj+djhj
-        #     pair_objectives[i] = (objij)
-        
-        # self.DataHolder.setPairObjectives(pair_objectives)
-        # objective_result = max(pair_objectives)
-        # self.DataHolder.setObjectiveResult(objective_result)
-        
-        self.close()
-        
-        
-    def setCenters(self,centers):
-        self.ap_centers = centers
-    def getCenters(self):
-        return self.ap_centers    
-    def setLabels(self,labels):
-        self.ap_labels = labels
-    def getLabels(self):
-        return self.ap_labels
-    
     def resetParameters(self):
         self.damping_lineEdit.setText("0.5")
         self.convergence_iter_lineEdit.setText("15")
@@ -264,8 +456,6 @@ class meanShiftCalculator(AbstractCalculator,Ui_msWindow):
         super().__init__(parent)
        
         self.setupUi(self)
-        # self.show()
-        # print(initialData)
         self.connectSignalSlots()
         self.DataHolder = DataHolder()
         self.ms_centers = []
@@ -284,77 +474,15 @@ class meanShiftCalculator(AbstractCalculator,Ui_msWindow):
         
         ms = self.ms.fit(data)
         labels = ms.labels_
-        self.DataHolder.setLabels(ms.labels_)
+        self.DataHolder.setLabels(labels)
         calculateClusters()
         calculateCenters()
         calculateCenterNodes()
         calculateFarhestDistance()
         calculatePairCombinations()
         calculatePairObjectives()
-        
-        # self.setLabels(ms.labels_)
-        
-        # self.n_clusters = len(np.unique(ms.labels_))
-        # cluster = [0]*self.n_clusters
-        # for i in range(0,(self.n_clusters)):
-        #     cluster[i] = (np.where(ms.labels_==i))
-        # self.DataHolder.setClusterIndices(cluster)
-        # # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
-        # # cluster = np.hstack((ind,labels[:,None]))
-        # # cluster = cluster[cluster[:, -1].argsort()]
-        # # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-        # self.setCenters(ms.cluster_centers_)  
-        # self.DataHolder.setCenters(ms.cluster_centers_)
-        # center_nodes = []  
-        # centers = ms.cluster_centers_ 
-        # dist = distance.cdist( centers, data, metric="euclidean" )
-        # for i in range(0,self.n_clusters):
-        #     center_nodes.append(np.where(dist[i] == min(dist[i])))
-
-        # center_nodes = np.array(center_nodes)
-        # center_nodes = center_nodes.reshape(1,self.n_clusters)
-        # center_nodes = list(*center_nodes)    
-        # self.DataHolder.setCenterNodes(center_nodes)
-        
-        # farhest_dist = {}
-        # farhest_dist = dict.fromkeys(center_nodes, 0)
-        # for i in range(0,self.n_clusters):
-        #     farhest_dist[center_nodes[i]] = (max(dist[i]))            
-        # self.DataHolder.setFarhestHubDistances(farhest_dist)
-        
-        # pair_combinations = combinations(list(center_nodes),2)
-        # pair_combinations = list(pair_combinations)
-        # self.DataHolder.setPairCombinations(pair_combinations)
-        
-        # pair_objectives = np.zeros(len(pair_combinations))
-        # for i in range(0,len(pair_combinations)):
-        #     cluster_i = pair_combinations[i][0]
-        #     cluster_j = pair_combinations[i][1]
-        #     dihi = farhest_dist[cluster_i]
-            
-        #     p1 = data[cluster_i]
-        #     p1 = p1.reshape(1,2)
-        #     p2 = data[cluster_j]
-        #     p2 = p2.reshape(1,2)
-        #     dhihj = distance.cdist(p1 ,p2,metric="euclidean")
-        #     djhj = farhest_dist[cluster_j]
-        #     objij = dihi+0.75*dhihj+djhj
-        #     pair_objectives[i] = (objij)
-        
-        # self.DataHolder.setPairObjectives(pair_objectives)
-        # objective_result = max(pair_objectives)
-        # self.DataHolder.setObjectiveResult(objective_result)
-        
         self.close()
-    def setCenters(self,centers):
-        self.ms_centers = centers
-    def getCenters(self):
-        return self.ms_centers    
-    def setLabels(self,labels):
-        self.ms_labels = labels
-    def getLabels(self):
-        return self.ms_labels
-    
+
     def resetParameters(self):        
         self.bandwidth_lineEdit.setText("")
         self.n_jobs_lineEdit.setText("1")        
@@ -375,12 +503,7 @@ class dbScanCalculator(AbstractCalculator,Ui_dbScanWindow):
          self.resetButton.clicked.connect(self.resetParameters)
 
      def calculate(self):
-         # ---------------------------------
-         # centers = [[1, 1], [-1, -1], [1, -1]]
-         # data, labels_true = make_blobs(n_samples=750, centers=centers, cluster_std=0.4, random_state=0)   
-                            
-         # data = StandardScaler().fit_transform(data)
-         # ---------------------------------
+
          self.eps = float(self.eps_lineEdit.text())
          self.min_samples = int(self.min_samples_lineEdit.text())
          self.n_jobs = int(self.n_jobs_lineEdit.text())
@@ -390,44 +513,16 @@ class dbScanCalculator(AbstractCalculator,Ui_dbScanWindow):
                               n_jobs=self.n_jobs ,algorithm=self.algorithm)
          dbs = self.dbs.fit(data)
          labels = dbs.labels_
-         self.DataHolder.setLabels(dbs.labels_)
+         self.DataHolder.setLabels(labels)
          calculateClusters()
          calculateCenters()
          calculateCenterNodes()
          calculateFarhestDistance()
          calculatePairCombinations()
          calculatePairObjectives()
-         # core_samples_mask = np.zeros_like(dbs.labels_, dtype=bool)
-         # core_samples_mask[dbs.core_sample_indices_] = True
-         
-         
-         # cluster = [0]*self.n_clusters
-         # for i in range(0,(self.n_clusters)):
-         #     cluster[i] = (np.where(dbs.labels_==i))
-         # self.DataHolder.setClusterIndices(cluster)
-         # print("lbl: ",dbs.labels_)
-         # self.n_clusters_ = len(set(dbs.labels_)) - (1 if -1 in dbs.labels_ else 0)
-         # self.n_noise_ = list(dbs.labels_).count(-1)
-         # print()
-         # print(self.n_noise_)
-         # print()
-         # print(self.n_clusters_)
-         # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
-         # cluster = np.hstack((ind,labels[:,None]))
-         # cluster = cluster[cluster[:, -1].argsort()]
-         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-         # self.setCenters(dbs.cluster_centers_)
+
          self.close()
-         
-     def setCenters(self,centers=[]):
-         self.dbs_centers = centers
-     def getCenters(self):
-         return self.dbs_centers    
-     def setLabels(self,labels):
-         self.dbs_labels = labels
-     def getLabels(self):
-         return self.dbs_labels
-     
+
      def resetParameters(self):  
          self.eps_lineEdit.setText("0.5")
          self.min_samples_lineEdit.setText("5")
@@ -460,95 +555,15 @@ class hcCalculator(AbstractCalculator,Ui_hcWindow):
          # self.setLabels(hc.labels_)
          
          labels = hc.labels_
-         self.DataHolder.setLabels(hc.labels_)
+         self.DataHolder.setLabels(labels)
          calculateClusters()
          calculateCenters()
          calculateCenterNodes()
          calculateFarhestDistance()
          calculatePairCombinations()
-         calculatePairObjectives()
-         
-         # n_clusters = hc.n_clusters_
-         # print("labels:")
-         # print(labels)
-         # print()
-         # print("number of clusters: ",n_clusters)
-            
-         # cluster = [0]*n_clusters
-         # for i in range(0,(n_clusters)):
-         #     cluster[i] = (np.where(labels==i))
-         # for i in range(0,(n_clusters)):
-         #     print("cluster ",i,"-->",*cluster[i])
-            
-         # centers = [0]*n_clusters
-         # for i in range(0,n_clusters):
-         #     x = np.mean(data[np.where(labels==i)][:,0])
-         #     y = np.mean(data[np.where(labels==i)][:,1])
-         #     centers[i] = [x,y]
-        
-         # print("centers: ")
-         # print(centers)
-        
-         # center_nodes = []  
-         # dist = distance.cdist(centers, data, metric="euclidean" )
-         # for i in range(0,self.n_clusters):
-         #    center_nodes.append(np.where(dist[i] == min(dist[i])))
-        
-         # center_nodes = np.array(center_nodes)
-         # center_nodes = center_nodes.reshape(1,n_clusters)
-         # center_nodes = list(*center_nodes)    
-         # print("Cluster center nodes -->",*center_nodes)
-        
-         # farhest_dist = {}
-         # farhest_dist = dict.fromkeys(center_nodes, 0)
-         # for i in range(0,n_clusters):
-         #     farhest_dist[center_nodes[i]] = (max(dist[i]))
-        
-         # print("****Farhest hub distances****")
-         # print(farhest_dist)
-        
-         # pair_combinations = combinations(list(center_nodes),2)
-         # pair_combinations = list(pair_combinations)
-         # print("possible pair combinations --> ",pair_combinations)
-        
-        
-         # pair_objectives = np.zeros(len(pair_combinations))
-         # for i in range(0,len(pair_combinations)):
-         #     cluster_i = pair_combinations[i][0]
-         #     cluster_j = pair_combinations[i][1]
-         #     dihi = farhest_dist[cluster_i]
-            
-         #     p1 = data[cluster_i]
-         #     p1 = p1.reshape(1,2)
-         #     p2 = data[cluster_j]
-         #     p2 = p2.reshape(1,2)
-         #     dhihj = distance.cdist(p1 ,p2,metric="euclidean")
-         #     djhj = farhest_dist[cluster_j]
-         #     objij = dihi+0.75*dhihj+djhj
-         #     pair_objectives[i] = (objij)
-            
-         #     objective_result = max(pair_objectives)
-        
-         # print("****Pair objectives****")
-         # print(pair_objectives)
-         # print()
-         # print("Objective result --> " ,objective_result)
-         # cluster = np.hstack((ind,labels[:,None]))
-         # cluster = cluster[cluster[:, -1].argsort()]
-         # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-         # self.setCenters(hc.cluster_centers_)
-         
+         calculatePairObjectives()           
          self.close()
-         
-     def setCenters(self,centers):
-         self.hc_centers = centers
-     def getCenters(self):
-         return self.hc_centers    
-     def setLabels(self,labels):
-         self.hc_labels = labels
-     def getLabels(self):
-         return self.hc_labels
-     
+
      def resetParameters(self):  
          self.n_clusters_lineEdit.setText("2")
          self.affinity_comboBox.setCurrentIndex(0)
@@ -560,8 +575,6 @@ class scCalculator(AbstractCalculator,Ui_scWindow):
         super().__init__(parent)
        
         self.setupUi(self)
-        # self.show()
-        # print(initialData)
         self.connectSignalSlots()
         self.DataHolder = DataHolder()
         self.sc_centers = []
@@ -590,39 +603,15 @@ class scCalculator(AbstractCalculator,Ui_scWindow):
         
         sc = self.sc.fit(data)
         labels = sc.labels_
-        self.DataHolder.setLabels(sc.labels_)
+        self.DataHolder.setLabels(labels)
         calculateClusters()
         calculateCenters()
         calculateCenterNodes()
         calculateFarhestDistance()
         calculatePairCombinations()
         calculatePairObjectives()
-        
-        # self.setLabels(sc.labels_)
-        
-        # labels
-        # cluster = [0]*self.n_clusters
-        # for i in range(0,(self.n_clusters)):
-        #     cluster[i] = (np.where(sc.labels_==i))
-        # self.DataHolder.setClusterIndices(cluster)
-        
-        # ind = np.reshape(np.arange(0,len(labels)),[len(labels),1])
-        # cluster = np.hstack((ind,labels[:,None]))
-        # cluster = cluster[cluster[:, -1].argsort()]
-        # cluster = np.split(cluster[:,:-1], np.unique(cluster[:, -1], return_index=True)[1][1:])
-        # self.setCenters(sc.cluster_centers_)
-        
         self.close()
         
-    def setCenters(self,centers):
-        self.sc_centers = centers
-    def getCenters(self):
-        return self.sc_centers    
-    def setLabels(self,labels):
-        self.sc_labels = labels
-    def getLabels(self):
-        return self.sc_labels
-    
     def resetParameters(self):
 
         self.n_clusters_lineEdit.setText("8")
@@ -635,79 +624,13 @@ class scCalculator(AbstractCalculator,Ui_scWindow):
         self.coef0_lineEdit.setText("1")
         self.n_jobs_lineEdit.setText("1")
 
-def calculateClusters():
-    DH = DataHolder()
-    labels = DH.getLabels()
-    n_clusters = len(np.unique(labels))
-    DH.setNumberOfClusters(n_clusters)
-    cluster = [0]*n_clusters
-    for i in range(0,(n_clusters)):
-        cluster[i] = (np.where(labels==i))
-    DH.setClusterIndices(cluster)
-def calculateCenters():    
-    DH = DataHolder()
-    n_clusters = DH.getNumberOfClusters()
-    data = DH.getInitialData()
-    labels = DH.getLabels()
-    centers = [0]*n_clusters
-    for i in range(0,n_clusters):
-        x = np.mean(data[np.where(labels==i)][:,0])
-        y = np.mean(data[np.where(labels==i)][:,1])
-        centers[i] = [x,y]
-    DH.setCenters(centers)
-def calculateCenterNodes():
-    DH = DataHolder()
-    center_nodes = []   
-    data = DH.getInitialData()
-    centers = DH.getCenters()
-    n_clusters = DH.getNumberOfClusters()
-        
-    dist = distance.cdist( centers, data, metric="euclidean" )
-    DH.setDistanceMatrix(dist)
-    for i in range(0,n_clusters):
-        center_nodes.append(np.where(dist[i] == min(dist[i])))
+# class calculateParameters(object):
+# def __init__(self):
+#     self.DH = DataHolder()
+#     self.calculateClusters()
+#     self.calculateCenters()
+#     self.calculateCenterNodes()
+#     self.calculateFarhestDistance()
+#     self.calculatePairCombinations()
+#     self.calculatePairObjectives()
 
-    center_nodes = np.array(center_nodes)
-    center_nodes = center_nodes.reshape(1,n_clusters)
-    center_nodes = list(*center_nodes)    
-    DH.setCenterNodes(center_nodes)
-
-def calculateFarhestDistance():
-    DH = DataHolder()
-    center_nodes = DH.getCenterNodes()
-    n_clusters = DH.getNumberOfClusters()
-    dist = DH.getDistanceMatrix()
-    farhest_dist = {}
-    farhest_dist = dict.fromkeys(center_nodes, 0)
-    for i in range(0,n_clusters):
-        farhest_dist[center_nodes[i]] = (max(dist[i]))            
-    DH.setFarhestHubDistances(farhest_dist)
-def calculatePairCombinations(): 
-    DH = DataHolder()
-    center_nodes = DH.getCenterNodes()
-    pair_combinations = combinations(list(center_nodes),2)
-    pair_combinations = list(pair_combinations)
-    DH.setPairCombinations(pair_combinations)
-def calculatePairObjectives():
-    DH = DataHolder()
-    pair_combinations = DH.getPairCombinations()
-    data = DH.getInitialData()
-    farhest_dist = DH.getFarhestHubDistances()
-    pair_objectives = np.zeros(len(pair_combinations))
-    for i in range(0,len(pair_combinations)):
-        cluster_i = pair_combinations[i][0]
-        cluster_j = pair_combinations[i][1]
-        dihi = farhest_dist[cluster_i]
-        
-        p1 = data[cluster_i]
-        p1 = p1.reshape(1,2)
-        p2 = data[cluster_j]
-        p2 = p2.reshape(1,2)
-        dhihj = distance.cdist(p1 ,p2,metric="euclidean")
-        djhj = farhest_dist[cluster_j]
-        objij = dihi+0.75*dhihj+djhj
-        pair_objectives[i] = (objij)
-    
-    DH.setPairObjectives(pair_objectives)
-    objective_result = max(pair_objectives)
-    DH.setObjectiveResult(objective_result)

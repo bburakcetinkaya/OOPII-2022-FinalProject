@@ -2,7 +2,8 @@
 """
 Created on Mon May 30 02:19:16 2022
 
-@author: piton
+@author: Burak Çetinkaya
+        151220152110
 """
 from MainManager import MainManager
 from PyQt5 import QtWidgets
