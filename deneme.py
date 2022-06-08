@@ -23,6 +23,9 @@ from DataHolder import DataHolder
 from scipy.spatial import distance
 from itertools import combinations
 DH = DataHolder() 
+
+n_iterations = 1000
+step_size = 0.1
 def calculateClusters():
     # print("*********************calculate clusters******************")
     labels = DH.getLabels()
@@ -116,13 +119,13 @@ def calculatePairObjectives():
         p2 = p2.reshape(1,2)
         dhihj = distance.cdist(p1 ,p2,metric="euclidean")
         djhj = farhest_dist[cluster_j]
-        objij = dihi+0.75*dhihj+djhj
+        objij = dihi+2*dhihj+djhj
         pair_objectives[i] = (objij)
     
     DH.setPairObjectives(pair_objectives)
     objective_result = max(pair_objectives)
-    print("objective result =" ,objective_result)
-    print()
+    # print("objective result =" ,objective_result)
+    # print()
     DH.setObjectiveResult(objective_result)
     # print(objective_result)
     
@@ -141,8 +144,8 @@ def RelocateHub():
     # print("center nodes after = ",center_nodes)
     cluster[nodeIndex] = np.array(hub)
     cluster_nodes[randIndex] = cluster
-    print("cluster nodes = ",cluster_nodes)
-    print("center nodes = ", center_nodes)
+    # print("cluster nodes = ",cluster_nodes)
+    # print("center nodes = ", center_nodes)
 
     DH.setClusterNodes(cluster_nodes)
     DH.setCenterNodes(center_nodes)
@@ -151,7 +154,7 @@ def SwapNodes():
    
     cluster = DH.getClusterNodes()   
     n_clusters = DH.getNumberOfClusters()
-    print("clusters before = " ,cluster)
+    # print("clusters before = " ,cluster)
     randHub1 = int(np.random.randint(0,n_clusters,1))
     randHub2 = int(np.random.randint(0,n_clusters,1))
     while randHub1 == randHub2:
@@ -162,7 +165,7 @@ def SwapNodes():
     randIndex1 = int(np.random.randint(0,len(a),1))
     randIndex2 = int(np.random.randint(0,len(b),1))
     a[randIndex1],b[randIndex2] = b[randIndex2],a[randIndex1]
-    print("clusters after = " ,cluster)
+    # print("clusters after = " ,cluster)
 
     
     DH.setClusterNodes(cluster)       
@@ -179,26 +182,29 @@ def ReallocateNode():
     if not len(clusterList1) <=1:
         # print("hello")
         # print()
-        print("cluster nodes before = ",clusterList)
+        # print("cluster nodes before = ",clusterList)
         index = int(np.random.randint(0,len(clusterList1),1))
         temp = clusterList1.pop(int(index))
         clusterList2.append(temp)
         clusterList[randIndex1] = np.array(clusterList1)
         clusterList[randIndex2] = np.array(clusterList2)
-        print("cluster nodes after = ",clusterList)
+        # print("cluster nodes after = ",clusterList)
     DH.setClusterNodes(clusterList)       
     # print("end of reallocate")
     
     
-    
-df = pd.read_csv("C:/Users/piton/Desktop/projects/oop-proj2/data/10.txt",sep=" ",header=None)
+# url = 'https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.csv'
+# df = pd.read_csv(url, header=None)
+# data = df.values    
+df = pd.read_csv("C:/Users/piton/Desktop/projects/oop-proj2/data/100.txt",sep=" ",header=None)
 df.columns = ["X","Y"]
+# df = data[:, :-1], data[:, -1]
 data = np.array(df)
 
 
 X = data
 DH.setInitialData(X)
-ac = KMeans(n_clusters=3).fit(X)
+ac = KMeans(n_clusters=10).fit(X)
 labels = ac.labels_
 DH.setLabels(labels)
 calculateClusters()
@@ -211,7 +217,10 @@ calculatePairObjectives()
 limit = DH.getObjectiveResult()
 i=0
 resultss=[]
-while limit >37000:
+solution = 0
+
+
+def algorithm():
     select = int(np.random.randint(0,3,1))
     if select == 0:
         RelocateHub()
@@ -219,25 +228,7 @@ while limit >37000:
         ReallocateNode()
     if select == 2:
         SwapNodes()
-        
-    # indcl = DH.getClusterNodes()
-    # limit = DH.getObjectiveResult()
-    # centers = DH.getCenterNodes()
-    # print(i," --->" ,limit,"---> ",centers,"-->" ,indcl)   
-    calculateCenters()
-    calculateFarhestDistance()
-    calculatePairCombinations()
-    calculatePairObjectives()  
-    limit = DH.getObjectiveResult()
-
-    
-    plt.pause(0.05)
-    i+=1
-    print(" iterasyon number = ", i)
-
-plt.show()    
-
-def printGraph():  
+def printGraph(centers):  
     data = DH.getInitialData()
     centers = DH.getCenters()
     labels = DH.getLabels()
@@ -260,12 +251,81 @@ def printGraph():
         # print("lbl")
     if len(centers):
         ploting.scatter(np.array(centers)[:, 0],np.array(centers)[:, 1],c = "red",s = 100, marker="x",alpha = 1,linewidth=1)
-        # print("center")
+        # print("center")  
+        
+def setBestSolutionResults():
+    DH.setBestCenterNodes(DH.getCenterNodes())
+    DH.setBestCenters(DH.getCenters())
+    DH.setBestClusterNodes(DH.getClusterNodes())
+    DH.setBestDistanceMatrix(DH.getDistanceMatrix())
+    DH.setBestFarhestHubDistances(DH.getFarhestHubDistances())
+    DH.setBestObjectiveResult(DH.getObjectiveResult())
+    DH.setBestPairCombinations(DH.getPairCombinations())
+    DH.setBestPairObjectives(DH.getPairObjectives())
+
+algorithm()
+calculateCenters()
+calculateFarhestDistance()
+calculatePairCombinations()
+calculatePairObjectives() 
+best_solution = solution 
+best_solution = DH.getObjectiveResult()
+solution = best_solution
+a= DH.getCenters()
+print(" iterasyon number = ", i)
+print("best solution = ", solution)
+resultss.append(best_solution)
+center = DH.getCenters()
+printGraph(center)
+for i in range (0,30000):
+    algorithm()
+    calculateCenters()
+    calculateFarhestDistance()
+    calculatePairCombinations()
+    calculatePairObjectives() 
+    solution = DH.getObjectiveResult()
+    if (solution <0.99*best_solution) or solution < (1.01*best_solution):
+        best_solution = solution
+        resultss.append(best_solution)
+        setBestSolutionResults()
+    else:
+        print(i)
+        print("solution = " ,solution)
 
 
+   
+print("best solution = ", best_solution)
+print("list of results :",resultss)
+center = DH.getBestCenters()
+printGraph(center)
+plt.plot(resultss)
+plt.show()    
+
+b = DH.getCenters()
+
+# def simulated_annealing_moves(rastgele_cozum, rastgele_cozum_amac_fnk, mesafeler_matris, sicaklik):
+#     cozum_sec = np.random.randint(0,3,1)
+#     if cozum_sec == 0:
+#         yeni_rastgele_cozum = SwapNodes()
+#     if cozum_sec == 1:
+#         yeni_rastgele_cozum = ReallocateNode()
+#     if cozum_sec == 2:
+#         yeni_rastgele_cozum = RelocateHub()
+
+#     yeni_rastgele_cozum_amac_fnk = calculate_obj_funct(mesafeler_matris, yeni_rastgele_cozum)
+
+#     if yeni_rastgele_cozum_amac_fnk < rastgele_cozum_amac_fnk:
+#         return yeni_rastgele_cozum, yeni_rastgele_cozum_amac_fnk
+#     else:
+#         random_value = random.random()
+#         boltzman_value = math.exp(((yeni_rastgele_cozum_amac_fnk - rastgele_cozum_amac_fnk) / sicaklik))
+#         if boltzman_value >= random_value:
+#             return yeni_rastgele_cozum, yeni_rastgele_cozum_amac_fnk
+#         else:
+#             return rastgele_cozum, rastgele_cozum_amac_fnk
 # centers = DH.getCenters()
 # labels = DH.getLabels()
-# printGraph()    
+   
     
     
     
