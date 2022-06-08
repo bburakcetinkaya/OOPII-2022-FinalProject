@@ -24,7 +24,7 @@ from scipy.spatial import distance
 from itertools import combinations
 DH = DataHolder() 
 def calculateClusters():
-    print("*********************calculate clusters******************")
+    # print("*********************calculate clusters******************")
     labels = DH.getLabels()
     n_clusters = len(np.unique(labels))
     DH.setNumberOfClusters(n_clusters)
@@ -32,33 +32,40 @@ def calculateClusters():
     clusterList = []
     for i in range(0,(n_clusters)):
         clusterList.append(list(np.where(labels==i))[0])
-    DH.setClusterIndices(clusterList)
+    DH.setClusterNodes(clusterList)
 
 def calculateCenters():    
-    print("*********************calculate centers******************")
+    # print("*********************calculate centers******************")
     n_clusters = DH.getNumberOfClusters()
     data = DH.getInitialData()
     centers = []
-    clusterList = DH.getClusterIndices()
+    clusterList = DH.getClusterNodes()
     for i in range(0,n_clusters):
-        x = np.mean(data[[clusterList[i]],0])
-        y = np.mean(data[[clusterList[i]],1])
+        x = np.mean(data[clusterList[i],0])
+        y = np.mean(data[clusterList[i],1])
         centers.append([x,y])
-    print("centers = " ,centers)
+    # print("centers = " ,centers)
       
     DH.setCenters(centers)
 def calculateCenterNodes():
 
-    center_nodes = []   
+    center_nodes = []  
+    cluster_nodes = []
     data = DH.getInitialData()
     centers = DH.getCenters()
     n_clusters = DH.getNumberOfClusters()
+    clusterList = DH.getClusterNodes()
         
     dist = distance.cdist(centers, data, metric="euclidean" )
     DH.setDistanceMatrix(dist)
     for i in range(0,n_clusters):
         center_nodes.append(np.where(dist[i] == min(dist[i]))[0])
-    print("center nodes = " , center_nodes)      
+    print("center nodes = " , center_nodes)   
+    for i in range(0,n_clusters):  
+        c = np.array(center_nodes[i])
+        d = np.array(clusterList[i])    
+        cluster_nodes.append(d[d != c])
+    DH.setClusterNodes(cluster_nodes)
     DH.setCenterNodes(center_nodes)
 
 def calculateFarhestDistance():
@@ -68,7 +75,7 @@ def calculateFarhestDistance():
     farhest_dist = {}
     center_nodes_list = []
     dist_to_center_node = []
-    clusterList = DH.getClusterIndices()
+    clusterList = DH.getClusterNodes()
     for i in range(0,n_clusters):
         center_nodes_list.append(int(center_nodes[i]))
     for i in range(0,n_clusters):  
@@ -81,8 +88,8 @@ def calculateFarhestDistance():
 
     farhest_dist = dict.fromkeys(center_nodes_list,0)
     for i in range(0,n_clusters):
-            farhest_dist[center_nodes_list[i]] = (max(dist_to_center_node[i][0]))            
-    print(farhest_dist)
+            farhest_dist[center_nodes_list[i]] = np.max(dist_to_center_node[i])            
+    # print(farhest_dist)
     DH.setFarhestHubDistances(farhest_dist)
 def calculatePairCombinations(): 
 
@@ -101,7 +108,7 @@ def calculatePairObjectives():
     for i in range(0,len(pair_combinations)):
         cluster_i = int(pair_combinations[i][0])
         cluster_j = int(pair_combinations[i][1])
-        print("farhest_dist = " ,farhest_dist)
+        # print("farhest_dist = " ,farhest_dist)
         dihi = farhest_dist[cluster_i]        
         p1 = data[cluster_i]
         p1 = p1.reshape(1,2)
@@ -119,108 +126,67 @@ def calculatePairObjectives():
     DH.setObjectiveResult(objective_result)
     # print(objective_result)
     
-# def RelocateHub():
-#     DH = DataHolder()
-#     n_clusters = DH.getNumberOfClusters()  
-#     center_nodes = DH.getCenterNodes()
-#     cluster = DH.getClusterIndices()
-#     for i in range(0,n_clusters):
-#         # listeden center node lar silinecek öyle çalışır bence :) kolay gelsin koçum benim beeeee 
-#         hub = center_nodes[i]
-#         print("hub -> ",hub)
-#         center_nodes[i] = np.random.choice(*cluster[i])
-#         # index = np.where
-#         print("center nodes at ",i," -> ",center_nodes[i])
-#         index_of_cluster = np.where(cluster[i] == center_nodes[i])
-#         cluster[i][0][index_of_cluster[1]] = hub
-#         print("indx opfsdfgn ")
-#         print(index_of_cluster)
-#     DH.setClusterIndices(cluster)
-#     DH.setCenterNodes(center_nodes)
-#     return cluster,center_nodes,index_of_cluster
 def RelocateHub():
    
     n_clusters = DH.getNumberOfClusters()
-    cluster = DH.getClusterIndices()
+    cluster = DH.getClusterNodes()
     center_nodes = DH.getCenterNodes()
+    cluster_nodes = DH.getClusterNodes()
+    randIndex = int(np.random.randint(0,n_clusters,1))
 
-    for i in range(0,n_clusters):
-        hub = center_nodes[i]
-        abc = np.copy(cluster[i][0])
-        # print("hub -> ",hub)
+    cluster = cluster_nodes[randIndex]
+    nodeIndex = int(np.random.randint(0,len(cluster),1))
+    hub = int(center_nodes[randIndex])
+    center_nodes[randIndex] = np.array(cluster[nodeIndex])
+    # print("center nodes after = ",center_nodes)
+    cluster[nodeIndex] = np.array(hub)
+    cluster_nodes[randIndex] = cluster
+    print("cluster nodes = ",cluster_nodes)
+    print("center nodes = ", center_nodes)
 
-        clstrList = list(abc)
-
-        center_nodes[i] = int(np.random.choice(clstrList))
-        # index = np.where
-        # print("center nodes at ",i," -> ",center_nodes[i])
-        # cluster[i].append(hub)
-        # index_of_cluster = np.where(cluster[i] == center_nodes[i])
-        # cluster[i][0][index_of_cluster[1]] = hub
-        # np.insert(cluster[i],0,hub)
-        clstrList.insert(0,hub)
-        # print("holahoalhadrgs")
-        index = clstrList.index(center_nodes[i])
-
-        clstrList.pop(index)
-        cluster[i] = np.array(clstrList)
-
-        
-        # print("indx opfsdfgn ")
-        # print(index_of_cluster)
-    DH.setClusterIndices(cluster)
+    DH.setClusterNodes(cluster_nodes)
     DH.setCenterNodes(center_nodes)
 
 def SwapNodes():
    
-    cluster = DH.getClusterIndices()   
+    cluster = DH.getClusterNodes()   
     n_clusters = DH.getNumberOfClusters()
-
-    randHub1,randHub2 = np.random.randint(0,n_clusters,2)
-    temparr1 = list(cluster[randHub1])
-    temparr2 = list(cluster[randHub2])
-    print(temparr1)
-    print(temparr2)
-    temp1 = np.random.choice(list(temparr1))
-    temp2 = np.random.choice(list(temparr2))
-    ind1 = temparr1.index(temp1)
-    ind2 = temparr2.index(temp2)
-    temparr1.pop(ind1)
-    temparr2.pop(ind2)
-    temparr1.insert(ind2,temp2)
-    temparr2.insert(ind1,temp1)
+    print("clusters before = " ,cluster)
+    randHub1 = int(np.random.randint(0,n_clusters,1))
+    randHub2 = int(np.random.randint(0,n_clusters,1))
+    while randHub1 == randHub2:
+        randHub1 = int(np.random.randint(0,n_clusters,1))
     
-    # print(temparr1)
-    # print(temparr2)
-    
-    cluster[randHub1] = np.array(temparr1)
-    cluster[randHub2] = np.array(temparr2)
+    a = cluster[randHub1]
+    b = cluster[randHub2]
+    randIndex1 = int(np.random.randint(0,len(a),1))
+    randIndex2 = int(np.random.randint(0,len(b),1))
+    a[randIndex1],b[randIndex2] = b[randIndex2],a[randIndex1]
+    print("clusters after = " ,cluster)
 
     
-    DH.setClusterIndices(cluster)       
+    DH.setClusterNodes(cluster)       
 
 def ReallocateNode():   
-    cluster = DH.getClusterIndices() 
+    clusterList = DH.getClusterNodes() 
     n_clusters = DH.getNumberOfClusters()
     
-    # print(center_nodes)
-    # print(cluster)
     randIndex1,randIndex2 = np.random.randint(0,n_clusters,2)
-
-    clusterList1 = list(cluster[randIndex1])
-    if len(clusterList1) <=1:
-        return
-    # print("**\n\n\n\n\n**")
-    index = np.random.randint(0,len(clusterList1),1)
-    clusterList2 = list(cluster[randIndex2])
-    # print(clusterList1)
-    # print(clusterList2)
-    temp = clusterList1.pop(int(index))
-    clusterList2.append(temp)
-    cluster[randIndex1] = np.array(clusterList1)
-    cluster[randIndex2] = np.array(clusterList2)
-
-    DH.setClusterIndices(cluster)       
+    while randIndex1 == randIndex2:
+        randIndex1,randIndex2 = np.random.randint(0,n_clusters,2)
+    clusterList1 = list(clusterList[randIndex1])
+    clusterList2 = list(clusterList[randIndex2])
+    if not len(clusterList1) <=1:
+        # print("hello")
+        # print()
+        print("cluster nodes before = ",clusterList)
+        index = int(np.random.randint(0,len(clusterList1),1))
+        temp = clusterList1.pop(int(index))
+        clusterList2.append(temp)
+        clusterList[randIndex1] = np.array(clusterList1)
+        clusterList[randIndex2] = np.array(clusterList2)
+        print("cluster nodes after = ",clusterList)
+    DH.setClusterNodes(clusterList)       
     # print("end of reallocate")
     
     
@@ -244,22 +210,32 @@ calculatePairObjectives()
  
 limit = DH.getObjectiveResult()
 i=0
-while limit >40000:
-    # indcl = DH.getClusterIndices()
+resultss=[]
+while limit >37000:
+    select = int(np.random.randint(0,3,1))
+    if select == 0:
+        RelocateHub()
+    if select == 1:
+        ReallocateNode()
+    if select == 2:
+        SwapNodes()
+        
+    # indcl = DH.getClusterNodes()
     # limit = DH.getObjectiveResult()
     # centers = DH.getCenterNodes()
     # print(i," --->" ,limit,"---> ",centers,"-->" ,indcl)   
-    ReallocateNode()
     calculateCenters()
     calculateFarhestDistance()
     calculatePairCombinations()
     calculatePairObjectives()  
     limit = DH.getObjectiveResult()
+
     
-    time.sleep(0.5)
-
+    plt.pause(0.05)
     i+=1
+    print(" iterasyon number = ", i)
 
+plt.show()    
 
 def printGraph():  
     data = DH.getInitialData()
@@ -287,9 +263,9 @@ def printGraph():
         # print("center")
 
 
-centers = DH.getCenters()
-labels = DH.getLabels()
-printGraph()    
+# centers = DH.getCenters()
+# labels = DH.getLabels()
+# printGraph()    
     
     
     

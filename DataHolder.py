@@ -28,48 +28,52 @@ class DataHolder(metaclass=Singleton):
     def setNumberOfClusters(self,n_clusters):
         self.__n_clusters = n_clusters
     def getNumberOfClusters(self):
-        print("number of clusters = ",self.__n_clusters)
+        # print("number of clusters = ",self.__n_clusters)
         return self.__n_clusters
     def setPairObjectives(self,pair_objectives):
         self.__pair_objectives = pair_objectives
     def getPairObjectives(self):
-        print("pair objectives = ",self.__pair_objectives)
+        # print("pair objectives = ",self.__pair_objectives)
         return self.__pair_objectives
     
     def setObjectiveResult(self,objective_result):
         self.__objective_result = objective_result
     def getObjectiveResult(self):   
-        print("objective result = ",self.__objective_result)
+        # print("objective result = ",self.__objective_result)
         return self.__objective_result
     
     def setPairCombinations(self,pair_combinations):
         self.__pair_combinations = pair_combinations
     def getPairCombinations(self):
-        print("pair combinations = ",self.__pair_combinations)
+        # print("pair combinations = ",self.__pair_combinations)
         return self.__pair_combinations
     
     def setFarhestHubDistances(self,farhest_distances):
         self.__farhest_distances = farhest_distances
     def getFarhestHubDistances(self):
-        print("farhest distance = ",self.__farhest_distances)
+        # print("farhest distance = ",self.__farhest_distances)
         return self.__farhest_distances
     
     def setCenterNodes(self,center_nodes):
         self.__center_nodes = center_nodes
     def getCenterNodes(self):
-        print("center nodes = ",self.__center_nodes)
+        # print("center nodes = ",self.__center_nodes)
         return self.__center_nodes
     
+    def setClusterNodes(self,cluster_nodes):
+        self.__cluster_nodes = cluster_nodes
+    def getClusterNodes(self):
+        return self.__cluster_nodes
     def setDistanceMatrix(self,dist):
         self.__dist = dist
     def getDistanceMatrix(self):
-        print("distance = ",self.__dist)
+        # print("distance = ",self.__dist)
         return self.__dist
     
     def setInitialData(self,initialData):
         self.__initialData = initialData        
     def getInitialData(self):
-        print("initial data = ",self.__initialData)
+        # print("initial data = ",self.__initialData)
         return self.__initialData 
     
     def setClusterIndices(self,indices):
@@ -81,11 +85,11 @@ class DataHolder(metaclass=Singleton):
     def setCenters(self,centers):
         self.__centers = centers
     def getCenters(self):
-        print("centers = ",self.__centers)
+        # print("centers = ",self.__centers)
         return self.__centers
     
     def setLabels(self,labels):
         self.__labels = labels
     def getLabels(self):
-        print("labels = ",self.__labels)
+        # print("labels = ",self.__labels)
         return self.__labels
